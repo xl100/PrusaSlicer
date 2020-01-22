@@ -82,6 +82,7 @@
 #include "../Utils/UndoRedo.hpp"
 #include "../Utils/Thread.hpp"
 #include "RemovableDriveManager.hpp"
+#include "NotificationManager.hpp"
 
 #include <wx/glcanvas.h>    // Needs to be last because reasons :-/
 #include "WipeTowerDialog.hpp"
@@ -1480,6 +1481,8 @@ struct Plater::priv
     GLToolbar view_toolbar;
     Preview *preview;
 
+	NotificationManager* notification_manager;
+
     BackgroundSlicingProcess    background_process;
     bool suppressed_backround_processing_update { false };
 
@@ -2208,6 +2211,14 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
 
     // Initialize the Undo / Redo stack with a first snapshot.
     this->take_snapshot(_(L("New Project")));
+<<<<<<< HEAD
+=======
+
+	//void Plater::priv::show_action_buttons(const bool is_ready_to_slice) const
+	RemovableDriveManager::get_instance().set_drive_count_changed_callback(std::bind(&Plater::priv::show_action_buttons, this, std::placeholders::_1));
+
+	notification_manager = new NotificationManager();
+>>>>>>> pop notification begining
 }
 
 Plater::priv::~priv()
@@ -3692,6 +3703,7 @@ void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
 
 void Plater::priv::on_slicing_completed(wxCommandEvent &)
 {
+	notification_manager->push_notification("Slicing is completed.");
     switch (this->printer_technology) {
     case ptFFF:
         this->update_fff_scene();
@@ -3714,6 +3726,8 @@ void Plater::priv::on_process_completed(wxCommandEvent &evt)
     this->background_process.stop();
     this->statusbar()->reset_cancel_callback();
     this->statusbar()->stop_busy();
+
+	notification_manager->push_notification("Process completed.");
 
     const bool canceled = evt.GetInt() < 0;
     const bool error = evt.GetInt() == 0;
@@ -4327,8 +4341,12 @@ void Plater::priv::update_object_menu()
 
 void Plater::priv::show_action_buttons(const bool ready_to_slice) const
 {
+<<<<<<< HEAD
 	// Cache this value, so that the callbacks from the RemovableDriveManager may repeat that value when calling show_action_buttons().
     this->ready_to_slice = ready_to_slice;
+=======
+	RemovableDriveManager::get_instance().set_plater_ready_to_slice(is_ready_to_slice);
+>>>>>>> pop notification begining
 
     wxWindowUpdateLocker noUpdater(sidebar);
     const auto prin_host_opt = config->option<ConfigOptionString>("print_host");
@@ -5243,8 +5261,27 @@ void Plater::send_gcode()
 // Called when the Eject button is pressed.
 void Plater::eject_drive()
 {
+<<<<<<< HEAD
     wxBusyCursor wait;
 	wxGetApp().removable_drive_manager()->eject_drive();
+=======
+	RemovableDriveManager::get_instance().update(0, true);
+	RemovableDriveManager::get_instance().erase_callbacks();
+	RemovableDriveManager::get_instance().add_remove_callback(std::bind(&Plater::drive_ejected_callback, this));
+	RemovableDriveManager::get_instance().eject_drive(RemovableDriveManager::get_instance().get_last_save_path());
+		
+}
+void Plater::drive_ejected_callback()
+{
+	if (RemovableDriveManager::get_instance().get_did_eject())
+	{
+        RemovableDriveManager::get_instance().set_did_eject(false);
+		wxString message = "Unmounting successful. The device " + RemovableDriveManager::get_instance().get_ejected_name() + "(" + RemovableDriveManager::get_instance().get_ejected_path() + ")" + " can now be safely removed from the computer.";
+		wxMessageBox(message);
+		p->notification_manager->push_notification("Unmounting successful. The device " + RemovableDriveManager::get_instance().get_ejected_name() + "(" + RemovableDriveManager::get_instance().get_ejected_path() + ")" + " can now be safely removed from the computer.");
+	}
+	p->show_action_buttons(false);
+>>>>>>> pop notification begining
 }
 
 void Plater::take_snapshot(const std::string &snapshot_name) { p->take_snapshot(snapshot_name); }
@@ -5682,6 +5719,16 @@ const Mouse3DController& Plater::get_mouse3d_controller() const
 Mouse3DController& Plater::get_mouse3d_controller()
 {
     return p->mouse3d_controller;
+}
+
+const NotificationManager* Plater::get_notification_manager() const
+{
+	return p->notification_manager;
+}
+
+NotificationManager* Plater::get_notification_manager()
+{
+	return p->notification_manager;
 }
 
 bool Plater::can_delete() const { return p->can_delete(); }
