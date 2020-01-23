@@ -131,7 +131,6 @@ void NotificationManager::render_notification(GLCanvas3D& canvas)
 		}
 	}
 	float last_x = 0.0f;
-	//for (auto& pop : m_pop_notifications)
 	for (auto it = m_pop_notifications.begin(); it != m_pop_notifications.end();)
 	{
 		if((*it)->get_finnished())
@@ -144,30 +143,9 @@ void NotificationManager::render_notification(GLCanvas3D& canvas)
 			last_x = (*it)->get_top();
 			++it;
 		}
-		
 	}
-	/*
-	for (size_t i = 0; i < m_notification_container.size(); i++)
-	//for (auto &notification : m_notification_container)
-	{
-		if (!m_notification_container[i].poped)
-		{
-			if (m_pop_notification == nullptr) 
-			{
-				m_notification_container[i].poped = true;
-				m_pop_notification = new PopNotification(m_notification_container[i].data);
-			}
-			break;
-		}
-	}
-	if (m_pop_notification != nullptr && m_pop_notification->get_finnished())
-	{
-		delete m_pop_notification;
-		m_pop_notification = nullptr;
-	}
-	if (m_pop_notification != nullptr)
-		m_pop_notification->render(canvas);
-		*/
+	//for (auto& pop : m_pop_notifications){}
+
 }
 
 void NotificationManager::print_to_console() const 
