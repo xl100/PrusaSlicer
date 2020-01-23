@@ -9,36 +9,45 @@ namespace GUI {
 
 class GLCanvas3D;
 
-
-
 class NotificationManager
 {
 public:
-	
+
+	struct NotificationData {
+		const std::string text;
+		const int id;
+		const int duration;
+	};
 	struct Notification {
-		std::string text;
+		const NotificationData data;
 		bool poped = false;
-		//Notification(const std::string& s) : text(s) {}
 	};
 
 	//Pop notification - shows only once to user.
 	class PopNotification
 	{
 	public:
-		PopNotification(const std::string& text);
+		PopNotification(const NotificationData& n);
 		//~PopNotificiation();
-		void render(GLCanvas3D& canvas);
+		void render(GLCanvas3D& canvas, const float& initial_x);
 		bool get_finnished() const { return m_finnished; }
+		float get_top() const;
 	private:
-		std::string  m_text;
+		const NotificationData m_data;
 		bool m_finnished;
+		bool m_closed_by_user;
+		float m_moving_anchor;
+		float m_window_height;
+		float m_window_width;
+		float m_initial_x;
+		long m_creation_time;
 	};
 
 
 	NotificationManager();
 	~NotificationManager();
 
-	void push_notification(const std::string &text);
+	void push_notification(const std::string& text);
 	void show_notifications() const;
 	void hide_notifications() const;
 
@@ -46,23 +55,12 @@ public:
 
 	
 private:
-	// plan: structure for keeping notifications - we want to keep them, 
-	// if they are among top x(~5) then show them (probably in some openable panel/window), if confirmed by user then delete them.
-	// When they arrive show them in notification pop-up(if clicked by user then no to keep them?).
-	// notifications should be pushable for any component - should this be (partialy) static?
-	// should notifications "lead back"? after clicking show whats up. -needed only if doing "what gone wrong" notif
-	// example notifications: sliced, sd card removed
 
 	void print_to_console() const;
 
-	//container: operations needed:
-	//	push_back (or front?)
-	//	erase at any index
-	//	access at any index 
-	//vector/deque both can access&add O(1), deletes O(n). List access O(n), adds and deletes O(1)
-	//lets do vector for now
 	std::vector<Notification> m_notification_container;
-	PopNotification* m_pop_notification;
+	std::deque<PopNotification*> m_pop_notifications;
+	int m_next_id;
 };
 
 }//namespace GUI
