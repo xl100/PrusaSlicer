@@ -316,6 +316,11 @@ void GLCanvas3DManager::destroy()
     std::cout << "thread id: " << std::this_thread::get_id() << std::endl;
     std::cout << "GLCanvas3DManager::destroy()" << std::endl;
     std::cout << "m_context: " << (void*)m_context << std::endl;
+
+#ifdef __WXOSX__ 
+    // Mac-specific
+    std::cout << "mac context: " << (void*)m_context->GetWXGLContext() << std::endl;
+#endif // __WXOSX__ 
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     if (m_context != nullptr)
