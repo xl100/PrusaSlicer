@@ -528,7 +528,10 @@ int CLI::run(int argc, char **argv)
         });
         int result = wxEntry(argc, argv);
         //FIXME this is a workaround for the PrusaSlicer 2.1 release.
-		_3DScene::destroy();
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        std::cout << "CLI::run()" << std::endl;
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        _3DScene::destroy();
         return result;
 #else /* SLIC3R_GUI */
         // No GUI support. Just print out a help.
