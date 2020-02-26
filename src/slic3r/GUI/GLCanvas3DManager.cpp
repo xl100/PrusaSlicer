@@ -237,7 +237,7 @@ bool GLCanvas3DManager::add(wxGLCanvas* canvas, Bed3D& bed, Camera& camera, GLTo
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #ifdef __APPLE__ 
         // Part of temporary hack to remove crash when closing on OSX 10.9.5
-        s_os_info.description = wxPlatformInfo::Get().GetOperatingSystemDescription();
+//        s_os_info.description = wxPlatformInfo::Get().GetOperatingSystemDescription();
         s_os_info.major = wxPlatformInfo::Get().GetOSMajorVersion();
         s_os_info.minor = wxPlatformInfo::Get().GetOSMinorVersion();
         s_os_info.micro = wxPlatformInfo::Get().GetOSMicroVersion();

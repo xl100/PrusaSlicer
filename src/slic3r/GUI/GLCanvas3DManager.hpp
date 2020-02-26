@@ -73,7 +73,7 @@ public:
     // Part of temporary hack to remove crash when closing on OSX 10.9.5
     struct OSInfo
     {
-        wxString description;
+//        wxString description;
         int major{ 0 };
         int minor{ 0 };
         int micro{ 0 };
