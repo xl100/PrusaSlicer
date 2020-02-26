@@ -17,6 +17,10 @@
 #include <iostream>
 
 #ifdef __APPLE__
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// Part of temporary hack to remove crash when closing on OSX 10.9.5
+#include <wx/platinfo.h>
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #include "../Utils/MacDarkMode.hpp"
 #endif // __APPLE__
 
@@ -192,6 +196,12 @@ GLCanvas3DManager::EMultisampleState GLCanvas3DManager::s_multisample = GLCanvas
 bool GLCanvas3DManager::s_compressed_textures_supported = false;
 GLCanvas3DManager::EFramebufferType GLCanvas3DManager::s_framebuffers_type = GLCanvas3DManager::FB_None;
 GLCanvas3DManager::GLInfo GLCanvas3DManager::s_gl_info;
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#ifdef __APPLE__ 
+// Part of temporary hack to remove crash when closing on OSX 10.9.5
+GLCanvas3DManager::OSInfo GLCanvas3DManager::s_os_info;
+#endif // __APPLE__ 
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 GLCanvas3DManager::GLCanvas3DManager()
     : m_context(nullptr)
@@ -201,9 +211,6 @@ GLCanvas3DManager::GLCanvas3DManager()
 
 GLCanvas3DManager::~GLCanvas3DManager()
 {
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-    std::cout << "GLCanvas3DManager::~GLCanvas3DManager()" << std::endl;
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 	this->destroy();
 }
 
@@ -226,6 +233,16 @@ bool GLCanvas3DManager::add(wxGLCanvas* canvas, Bed3D& bed, Camera& camera, GLTo
         m_context = new wxGLContext(canvas);
         if (m_context == nullptr)
             return false;
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#ifdef __APPLE__ 
+        // Part of temporary hack to remove crash when closing on OSX 10.9.5
+        s_os_info.description = wxPlatformInfo::Get().GetOperatingSystemDescription();
+        s_os_info.major = wxPlatformInfo::Get().GetOSMajorVersion();
+        s_os_info.minor = wxPlatformInfo::Get().GetOSMinorVersion();
+        s_os_info.micro = wxPlatformInfo::Get().GetOSMicroVersion();
+#endif //__APPLE__
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     }
 
     canvas3D->set_context(m_context);
@@ -250,10 +267,6 @@ bool GLCanvas3DManager::remove(wxGLCanvas* canvas)
 
 void GLCanvas3DManager::remove_all()
 {
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-    std::cout << "GLCanvas3DManager::remove_all()" << std::endl;
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
     for (CanvasesMap::value_type& item : m_canvases)
     {
         item.second->unbind_event_handlers();
@@ -312,20 +325,17 @@ bool GLCanvas3DManager::init(wxGLCanvas* canvas)
 
 void GLCanvas3DManager::destroy()
 {
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-    std::cout << "thread id: " << std::this_thread::get_id() << std::endl;
-    std::cout << "GLCanvas3DManager::destroy()" << std::endl;
-    std::cout << "m_context: " << (void*)m_context << std::endl;
-
-#ifdef __WXOSX__ 
-    // Mac-specific
-    if (m_context != nullptr)
-        std::cout << "mac context: " << (void*)m_context->GetWXGLContext() << std::endl;
-#endif // __WXOSX__ 
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
     if (m_context != nullptr)
     {
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#ifdef __APPLE__ 
+        // this is a temporary ugly hack to solve the crash happening when closing the application on OSX 10.9.5
+        // the crash is inside wxGLContext destructor
+        if (s_os_info.major == 10 && s_os_info.minor == 9 && s_os_info.micro == 5)
+            return;
+#endif //__APPLE__
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
         delete m_context;
         m_context = nullptr;
     }
