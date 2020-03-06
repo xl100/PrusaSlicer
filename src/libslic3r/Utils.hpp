@@ -64,16 +64,15 @@ extern std::string normalize_utf8_nfc(const char *src);
 // for a short while, so the file may not be movable. Retry while we see recoverable errors.
 extern std::error_code rename_file(const std::string &from, const std::string &to);
 
-enum CopyFileResult {
-	SUCCESS = 0,
-	FAIL_COPY_FILE,
-	FAIL_FILES_DIFFERENT,
-	FAIL_RENAMING,
-	FAIL_CHECK_ORIGIN_NOT_OPENED,
-	FAIL_CHECK_TARGET_NOT_OPENED
+enum class CopyFileResult {
+	CopySuccess,
+	FailCopyFile,
+	FailFilesDifferent,
+	FailRenaming,
+	FailCheckOriginNotOpened,
+	FailCheckTargetNotOpened
 };
-// Copy a file, adjust the access attributes, so that the target is writable.
-CopyFileResult copy_file_inner(const std::string &from, const std::string &to);
+
 // Copy file to a temp file first, then rename it to the final file name.
 // If with_check is true, then the content of the copied file is compared to the content
 // of the source file before renaming.

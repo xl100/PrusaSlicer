@@ -417,7 +417,44 @@ std::error_code rename_file(const std::string &from, const std::string &to)
 #endif
 }
 
-CopyFileResult copy_file_inner(const std::string& from, const std::string& to)
+CopyFileResult check_copy(const std::string& origin, const std::string& copy)
+{
+	boost::nowide::ifstream f1(origin, std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
+	boost::nowide::ifstream f2(copy, std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
+
+	if (f1.fail())
+		return CopyFileResult::FailCheckOriginNotOpened;
+	if (f2.fail())
+		return CopyFileResult::FailCheckTargetNotOpened;
+
+	std::streampos fsize = f1.tellg();
+	if (fsize != f2.tellg())
+		return CopyFileResult::FailFilesDifferent;
+
+	f1.seekg(0, std::ifstream::beg);
+	f2.seekg(0, std::ifstream::beg);
+
+	// Compare by reading 8 MiB buffers one at a time.
+	size_t 			  buffer_size = 8 * 1024 * 1024;
+	std::vector<char> buffer_origin(buffer_size, 0);
+	std::vector<char> buffer_copy(buffer_size, 0);
+	do {
+		f1.read(buffer_origin.data(), buffer_size);
+		f2.read(buffer_copy.data(), buffer_size);
+		std::streampos origin_cnt = f1.gcount();
+		std::streampos copy_cnt = f2.gcount();
+		if (origin_cnt != copy_cnt ||
+			(origin_cnt > 0 && std::memcmp(buffer_origin.data(), buffer_copy.data(), origin_cnt) != 0))
+			// Files are different.
+			return CopyFileResult::FailFilesDifferent;
+		fsize -= origin_cnt;
+	} while (f1.good() && f2.good());
+
+	// All data has been read and compared equal.
+	return (f1.eof() && f2.eof() && fsize == 0) ? CopyFileResult::CopySuccess : CopyFileResult::FailFilesDifferent;
+}
+
+static CopyFileResult copy_file_inner(const std::string& from, const std::string& to) 
 {
 	const boost::filesystem::path source(from);
 	const boost::filesystem::path target(to);
@@ -433,63 +470,28 @@ CopyFileResult copy_file_inner(const std::string& from, const std::string& to)
 	boost::filesystem::permissions(target, perms, ec);
 	boost::filesystem::copy_file(source, target, boost::filesystem::copy_option::overwrite_if_exists, ec);
 	if (ec) {
-		return FAIL_COPY_FILE;
+		return CopyFileResult::FailCopyFile;
 	}
 	boost::filesystem::permissions(target, perms, ec);
-	return SUCCESS;
+	return CopyFileResult::CopySuccess;
 }
 
 CopyFileResult copy_file(const std::string &from, const std::string &to, const bool with_check)
 {
 	std::string to_temp = to + ".tmp";
 	CopyFileResult ret_val = copy_file_inner(from,to_temp);
-    if(ret_val == SUCCESS)
+    if(ret_val == CopyFileResult::CopySuccess)
 	{
         if (with_check)
             ret_val = check_copy(from, to_temp);
 
-        if (ret_val == 0 && rename_file(to_temp, to))
-        	ret_val = FAIL_RENAMING;
+        if (ret_val == CopyFileResult::CopySuccess && rename_file(to_temp, to))
+        	ret_val = CopyFileResult::FailRenaming;
 	}
 	return ret_val;
 }
 
-CopyFileResult check_copy(const std::string &origin, const std::string &copy)
-{
-	boost::nowide::ifstream f1(origin, std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
-	boost::nowide::ifstream f2(copy, std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
 
-	if (f1.fail())
-		return FAIL_CHECK_ORIGIN_NOT_OPENED;
-	if (f2.fail())
-		return FAIL_CHECK_TARGET_NOT_OPENED;
-
-	std::streampos fsize = f1.tellg();
-	if (fsize != f2.tellg())
-		return FAIL_FILES_DIFFERENT;
-
-	f1.seekg(0, std::ifstream::beg);
-	f2.seekg(0, std::ifstream::beg);
-
-	// Compare by reading 8 MiB buffers one at a time.
-	size_t 			  buffer_size = 8 * 1024 * 1024;
-	std::vector<char> buffer_origin(buffer_size, 0);
-	std::vector<char> buffer_copy(buffer_size, 0);
-	do {
-		f1.read(buffer_origin.data(), buffer_size);
-        f2.read(buffer_copy.data(), buffer_size);
-		std::streampos origin_cnt = f1.gcount();
-		std::streampos copy_cnt   = f2.gcount();
-		if (origin_cnt != copy_cnt ||
-			(origin_cnt > 0 && std::memcmp(buffer_origin.data(), buffer_copy.data(), origin_cnt) != 0))
-			// Files are different.
-			return FAIL_FILES_DIFFERENT;
-		fsize -= origin_cnt;
-    } while (f1.good() && f2.good());
-
-    // All data has been read and compared equal.
-    return (f1.eof() && f2.eof() && fsize == 0) ? SUCCESS : FAIL_FILES_DIFFERENT;
-}
 
 // Ignore system and hidden files, which may be created by the DropBox synchronisation process.
 // https://github.com/prusa3d/PrusaSlicer/issues/1298
