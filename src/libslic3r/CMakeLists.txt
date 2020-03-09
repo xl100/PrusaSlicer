@@ -188,7 +188,7 @@ add_library(libslic3r STATIC
     SimplifyMesh.hpp
     SimplifyMeshImpl.hpp
     SimplifyMesh.cpp
-    MarchingCubes2D.hpp
+    MarchingSquares.hpp
     ${OpenVDBUtils_SOURCES}
     SLA/Common.hpp
     SLA/Common.cpp
