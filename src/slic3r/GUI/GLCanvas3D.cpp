@@ -1944,7 +1944,7 @@ void GLCanvas3D::render()
 
     wxGetApp().plater()->get_mouse3d_controller().render_settings_dialog(*this);
 
-	wxGetApp().plater()->get_notification_manager()->render_notification(*this);
+	wxGetApp().plater()->get_notification_manager()->render_notifications(*this);
 
     wxGetApp().imgui()->render();
 

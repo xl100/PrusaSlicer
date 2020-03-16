@@ -285,12 +285,10 @@ public:
     const Mouse3DController& get_mouse3d_controller() const;
     Mouse3DController& get_mouse3d_controller();
 
-<<<<<<< HEAD
 	void set_bed_shape() const;
-=======
+    
 	const NotificationManager* get_notification_manager() const;
 	NotificationManager* get_notification_manager();
->>>>>>> pop notification begining
 
 	// ROII wrapper for suppressing the Undo / Redo snapshot to be taken.
 	class SuppressSnapshots

@@ -7,60 +7,74 @@
 namespace Slic3r {
 namespace GUI {
 
+
 class GLCanvas3D;
 
+enum class NotificationType
+{
+	Undefined,
+	SlicingComplete
+};
 class NotificationManager
 {
 public:
 
 	struct NotificationData {
-		const std::string text;
-		const int id;
-		const int duration;
-	};
-	struct Notification {
-		const NotificationData data;
-		bool poped = false;
+		NotificationType    type;
+		const std::string   text;
+		const int           duration;
 	};
 
 	//Pop notification - shows only once to user.
 	class PopNotification
 	{
 	public:
-		PopNotification(const NotificationData& n);
-		//~PopNotificiation();
-		void render(GLCanvas3D& canvas, const float& initial_x);
-		bool get_finnished() const { return m_finnished; }
+		PopNotification(const NotificationData& n, const int id);
+		//~PopNotificiation(){}
+		// return true if there was rendering into imgui
+		bool render(GLCanvas3D& canvas, const float& initial_x);
+		// close will dissapear notification on next render
+		void close() { m_close_pending = true; }
+		// data from newer notification of same type
+		void update(const int id);
+		bool get_finished() const { return m_finished; }
 		float get_top() const;
+		NotificationType get_type() const { return m_data.type; }
+		
 	private:
 		const NotificationData m_data;
-		bool m_finnished;
-		bool m_closed_by_user;
-		float m_moving_anchor;
-		float m_window_height;
-		float m_window_width;
-		float m_initial_x;
-		long m_creation_time;
+
+		long  m_creation_time;
+		int   m_id;
+		bool  m_finished      { false };
+		bool  m_close_pending { false };
+		float m_window_height { 0.0f };
+		float m_window_width  { 0.0f };
+		float m_current_x     { 0.0f } ;
+		float m_target_x      { 0.0f };
+		float m_move_step     { 0.0f };
 	};
 
 
 	NotificationManager();
 	~NotificationManager();
 
-	void push_notification(const std::string& text);
-	void show_notifications() const;
-	void hide_notifications() const;
+	//pushes notification into the queue of notifications that are rendered
+	void push_notification(const NotificationType type, const std::string& text, GLCanvas3D& canvas);
+	// only type means standard text
+	void push_notification(const NotificationType type, GLCanvas3D& canvas);
+	// only text means Undefined type
+	void push_notification(const std::string& text, GLCanvas3D& canvas);
+	// renders notifications in queue and deletes expired ones
+	void render_notifications(GLCanvas3D& canvas);
 
-	void render_notification(GLCanvas3D& canvas);
-
-	
 private:
-
+	//finds older notification of same type and moves it to the end of queue. returns true if found
+	bool find_older(NotificationType type);
 	void print_to_console() const;
 
-	std::vector<Notification> m_notification_container;
 	std::deque<PopNotification*> m_pop_notifications;
-	int m_next_id;
+	int m_next_id{ 0 };
 };
 
 }//namespace GUI

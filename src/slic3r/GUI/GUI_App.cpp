@@ -47,6 +47,7 @@
 #include "KBShortcutsDialog.hpp"
 #include "UpdateDialogs.hpp"
 #include "RemovableDriveManager.hpp"
+#include "NotificationManager.hpp"
 
 #ifdef __WXMSW__
 #include <Shlobj.h>
@@ -273,6 +274,8 @@ bool GUI_App::on_init_inner()
             app_config->save();
 
         this->obj_manipul()->update_if_dirty();
+
+		//this->plater()->get_notification_manager()->render_notification(*(this->plater()->get_current_canvas3D()));
 
 		// Preset updating & Configwizard are done after the above initializations,
 	    // and after MainFrame is created & shown.
