@@ -18,7 +18,7 @@ enum class NotificationType
 class NotificationManager
 {
 public:
-
+	// duration 0 means not disapearing
 	struct NotificationData {
 		NotificationType    type;
 		const std::string   text;
@@ -65,8 +65,7 @@ public:
 	NotificationManager();
 	~NotificationManager();
 
-	//pushes notification into the queue of notifications that are rendered
-	void push_notification(const NotificationType type, const std::string& text, GLCanvas3D& canvas);
+	
 	// only type means standard text
 	void push_notification(const NotificationType type, GLCanvas3D& canvas);
 	// only text means Undefined type
@@ -75,6 +74,8 @@ public:
 	void render_notifications(GLCanvas3D& canvas);
 
 private:
+	//pushes notification into the queue of notifications that are rendered
+	void push_notification(const NotificationType type, const std::string& text, int duration, GLCanvas3D& canvas);
 	//finds older notification of same type and moves it to the end of queue. returns true if found
 	bool find_older(NotificationType type);
 	void print_to_console() const;

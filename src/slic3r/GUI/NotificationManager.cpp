@@ -25,7 +25,7 @@ NotificationManager::PopNotification::RenderResult NotificationManager::PopNotif
 	if (m_finished)
 		return RenderResult::Finished;
 	
-	if (wxGetLocalTime() - m_creation_time >= m_data.duration)
+	if (m_data.duration != 0 && wxGetLocalTime() - m_creation_time >= m_data.duration)
 		m_close_pending = true;
 
 	if (m_close_pending) {
@@ -105,24 +105,25 @@ NotificationManager::~NotificationManager()
 void NotificationManager::push_notification(const NotificationType type, GLCanvas3D& canvas)
 {
 	std::string text;
+	int duration = NOTIFICATION_UP_TIME;
 	switch (type) {
-	case NotificationType::SlicingComplete: text = "Slicing finished"; break;
+	case NotificationType::SlicingComplete: text = "Slicing finished"; duration = 0;  break;
 	default:                                return;
 	}
-	push_notification(type, text, canvas);
+	push_notification(type, text, duration, canvas);
 }
 void NotificationManager::push_notification(const std::string& text, GLCanvas3D& canvas)
 {
-	push_notification(NotificationType::Undefined, text, canvas);
+	push_notification(NotificationType::Undefined, text, NOTIFICATION_UP_TIME, canvas);
 }
-void NotificationManager::push_notification(const NotificationType type, const std::string& text, GLCanvas3D& canvas)
+void NotificationManager::push_notification(const NotificationType type, const std::string& text, int duration, GLCanvas3D& canvas)
 {
 	if (!this->find_older(type))
-		m_pop_notifications.emplace_back(new PopNotification({ type, text, NOTIFICATION_UP_TIME, m_next_id++ }));
+		m_pop_notifications.emplace_back(new PopNotification({ type, text, duration, m_next_id++ }));
 	else
 		m_pop_notifications.back()->update();
-	std::cout << "PUSH: " << text << std::endl;
-	canvas.render();
+	//std::cout << "PUSH: " << text << std::endl;
+	canvas.request_extra_frame();
 }
 void NotificationManager::render_notifications(GLCanvas3D& canvas)
 {
@@ -136,7 +137,7 @@ void NotificationManager::render_notifications(GLCanvas3D& canvas)
 			PopNotification::RenderResult res = (*it)->render(canvas, last_x);
 			if (res != PopNotification::RenderResult::Finished)
 				last_x = (*it)->get_top();
-			if (res == PopNotification::RenderResult::Moving || res == PopNotification::RenderResult::ClosePending)
+			if (res == PopNotification::RenderResult::Moving || res == PopNotification::RenderResult::ClosePending || res == PopNotification::RenderResult::Finished)
 				request_next_frame = true;
 			++it;
 		}
@@ -149,6 +150,8 @@ void NotificationManager::render_notifications(GLCanvas3D& canvas)
 
 bool NotificationManager::find_older(NotificationType type)
 {
+	if (type == NotificationType::Undefined)
+		return false;
 	for (auto it = m_pop_notifications.begin(); it != m_pop_notifications.end(); ++it)
 	{
 		if((*it)->get_type() == type && !(*it)->get_finished() && it != m_pop_notifications.end()-1)
