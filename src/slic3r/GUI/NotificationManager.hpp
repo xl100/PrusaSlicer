@@ -23,20 +23,27 @@ public:
 		NotificationType    type;
 		const std::string   text;
 		const int           duration;
+		const int           id;
 	};
 
 	//Pop notification - shows only once to user.
 	class PopNotification
 	{
 	public:
-		PopNotification(const NotificationData& n, const int id);
+		enum class RenderResult
+		{
+			Finished,
+			ClosePending,
+			Static,
+			Moving
+		};
+		PopNotification(const NotificationData& n);
 		//~PopNotificiation(){}
-		// return true if there was rendering into imgui
-		bool render(GLCanvas3D& canvas, const float& initial_x);
+		RenderResult render(GLCanvas3D& canvas, const float& initial_x);
 		// close will dissapear notification on next render
 		void close() { m_close_pending = true; }
 		// data from newer notification of same type
-		void update(const int id);
+		void update();
 		bool get_finished() const { return m_finished; }
 		float get_top() const;
 		NotificationType get_type() const { return m_data.type; }
@@ -45,12 +52,11 @@ public:
 		const NotificationData m_data;
 
 		long  m_creation_time;
-		int   m_id;
 		bool  m_finished      { false };
 		bool  m_close_pending { false };
 		float m_window_height { 0.0f };
 		float m_window_width  { 0.0f };
-		float m_current_x     { 0.0f } ;
+		float m_current_x     { 0.0f };
 		float m_target_x      { 0.0f };
 		float m_move_step     { 0.0f };
 	};

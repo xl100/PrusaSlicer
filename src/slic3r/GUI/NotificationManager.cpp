@@ -6,35 +6,35 @@
 #include <wx/glcanvas.h>
 #include <iostream>
 
-#define NOTIFICATION_UP_TIME  1010
+#define NOTIFICATION_UP_TIME  10
 #define NOTIFICATION_MAX_MOVE 3.0f
 
 namespace Slic3r {
 namespace GUI {
 
 //------PopNotification--------
-NotificationManager::PopNotification::PopNotification(const NotificationData& n, const int id) :
+NotificationManager::PopNotification::PopNotification(const NotificationData& n) :
 	  m_data          (n)
-	, m_id            (id)
 	, m_creation_time (wxGetLocalTime())
 {
 }
 //NotificationManager::PopNotification::~PopNotification()
 //{}
-bool NotificationManager::PopNotification::render(GLCanvas3D& canvas, const float& initial_x)
+NotificationManager::PopNotification::RenderResult NotificationManager::PopNotification::render(GLCanvas3D& canvas, const float& initial_x)
 {
 	if (m_finished)
-		return false;
+		return RenderResult::Finished;
 	
 	if (wxGetLocalTime() - m_creation_time >= m_data.duration)
 		m_close_pending = true;
 
 	if (m_close_pending) {
 		m_finished = true;
-		canvas.request_extra_frame();
-		return false;
+		//canvas.request_extra_frame();
+		return RenderResult::ClosePending;
 	}
 
+	RenderResult ret_val = RenderResult::Static;
 	Size cnv_size = canvas.get_canvas_size();
 	ImGuiWrapper& imgui = *wxGetApp().imgui();
 	imgui.set_next_window_pos(1.0f * (float)cnv_size.get_width(), 1.0f * (float)cnv_size.get_height() - m_current_x, ImGuiCond_Always, 1.0f, 0.0f);
@@ -50,13 +50,14 @@ bool NotificationManager::PopNotification::render(GLCanvas3D& canvas, const floa
 		if (new_target || m_move_step < 1.0f)
 			m_move_step = std::min((m_target_x - m_current_x) / 20, NOTIFICATION_MAX_MOVE);
 		m_current_x += m_move_step;
+		ret_val = RenderResult::Moving;
 	}
 	if (m_current_x > m_target_x)
 		m_current_x = m_target_x;
 
 	bool shown = true;
 	std::string name;
-	for (size_t i = 0; i < m_id; i++)
+	for (size_t i = 0; i < m_data.id; i++)
 		name += " ";
 	//if (imgui.begin(_(L("Notification")), &shown, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
 	if (imgui.begin(name, &shown, ImGuiWindowFlags_NoCollapse)) {
@@ -67,7 +68,7 @@ bool NotificationManager::PopNotification::render(GLCanvas3D& canvas, const floa
 			
 			const ImVec4& color = ImGui::GetStyleColorVec4(ImGuiCol_Separator);
 			ImGui::PushStyleColor(ImGuiCol_Text, color);
-			imgui.text((m_data.text + " " + std::to_string(m_id)).c_str());
+			imgui.text(m_data.text.c_str());
 			ImGui::PopStyleColor();
 			
 		} else {
@@ -78,7 +79,7 @@ bool NotificationManager::PopNotification::render(GLCanvas3D& canvas, const floa
 	}
 
 	imgui.end();
-	return true;
+	return ret_val;
 }
 
 float NotificationManager::PopNotification::get_top() const 
@@ -86,9 +87,8 @@ float NotificationManager::PopNotification::get_top() const
 	return m_target_x;
 }
 
-void NotificationManager::PopNotification::update(const int id)
+void NotificationManager::PopNotification::update()
 {
-	m_id = id;
 	m_creation_time = wxGetLocalTime();
 }
 //------NotificationManager--------
@@ -118,24 +118,32 @@ void NotificationManager::push_notification(const std::string& text, GLCanvas3D&
 void NotificationManager::push_notification(const NotificationType type, const std::string& text, GLCanvas3D& canvas)
 {
 	if (!this->find_older(type))
-		m_pop_notifications.emplace_back(new PopNotification({ type, text, NOTIFICATION_UP_TIME }, m_next_id++));
+		m_pop_notifications.emplace_back(new PopNotification({ type, text, NOTIFICATION_UP_TIME, m_next_id++ }));
 	else
-		m_pop_notifications.back()->update(m_next_id++);
+		m_pop_notifications.back()->update();
 	std::cout << "PUSH: " << text << std::endl;
 	canvas.render();
 }
 void NotificationManager::render_notifications(GLCanvas3D& canvas)
 {
 	float last_x = 0.0f;
+	bool request_next_frame = false;
 	for (auto it = m_pop_notifications.begin(); it != m_pop_notifications.end();) {
 		if ((*it)->get_finished()) {
 			delete (*it);
 			it = m_pop_notifications.erase(it);
 		} else {
-			if ((*it)->render(canvas, last_x))
+			PopNotification::RenderResult res = (*it)->render(canvas, last_x);
+			if (res != PopNotification::RenderResult::Finished)
 				last_x = (*it)->get_top();
+			if (res == PopNotification::RenderResult::Moving || res == PopNotification::RenderResult::ClosePending)
+				request_next_frame = true;
 			++it;
 		}
+	}
+	if(request_next_frame)
+	{
+		canvas.request_extra_frame();
 	}
 }
 
