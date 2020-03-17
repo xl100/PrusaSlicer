@@ -40,7 +40,7 @@ NotificationManager::PopNotification::RenderResult NotificationManager::PopNotif
 	imgui.set_next_window_pos(1.0f * (float)cnv_size.get_width(), 1.0f * (float)cnv_size.get_height() - m_current_x, ImGuiCond_Always, 1.0f, 0.0f);
 
 	bool new_target = false;
-	if(m_target_x != initial_x + m_window_height)
+	if (m_target_x != initial_x + m_window_height)
 	{
 		m_target_x = initial_x + m_window_height;
 		new_target = true;
@@ -60,15 +60,24 @@ NotificationManager::PopNotification::RenderResult NotificationManager::PopNotif
 	for (size_t i = 0; i < m_data.id; i++)
 		name += " ";
 	//if (imgui.begin(_(L("Notification")), &shown, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse)) {
-	if (imgui.begin(name, &shown, ImGuiWindowFlags_NoCollapse)) {
+	if (imgui.begin(name, &shown, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar)) {
 		if (shown) {
 			ImVec2 win_size = ImGui::GetWindowSize();
 			m_window_height = win_size.y;
 			m_window_width = win_size.x;
 			
-			const ImVec4& color = ImGui::GetStyleColorVec4(ImGuiCol_Separator);
-			ImGui::PushStyleColor(ImGuiCol_Text, color);
-			imgui.text(m_data.text.c_str());
+			const ImVec4& color = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+			ImGui::PushStyleColor(ImGuiCol_Button, color); 
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, color);
+
+			//imgui.text(m_data.text.c_str());
+
+			if (imgui.button(m_data.text.c_str()))
+				m_close_pending = true;
+
+			ImGui::PopStyleColor();
+			ImGui::PopStyleColor();
 			ImGui::PopStyleColor();
 			
 		} else {
@@ -154,9 +163,10 @@ bool NotificationManager::find_older(NotificationType type)
 		return false;
 	for (auto it = m_pop_notifications.begin(); it != m_pop_notifications.end(); ++it)
 	{
-		if((*it)->get_type() == type && !(*it)->get_finished() && it != m_pop_notifications.end()-1)
+		if((*it)->get_type() == type && !(*it)->get_finished())
 		{
-			std::rotate(it, it+1 , m_pop_notifications.end());
+			if (it != m_pop_notifications.end() - 1)
+				std::rotate(it, it + 1, m_pop_notifications.end());
 			return true;
 		}
 	}
