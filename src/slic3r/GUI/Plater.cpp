@@ -3721,7 +3721,7 @@ void Plater::priv::on_process_completed(wxCommandEvent &evt)
     this->statusbar()->reset_cancel_callback();
     this->statusbar()->stop_busy();
 
-	notification_manager->push_notification("Process completed.", *q->get_current_canvas3D());
+	notification_manager->push_notification("Process completed", *q->get_current_canvas3D());
 
     const bool canceled = evt.GetInt() < 0;
     const bool error = evt.GetInt() == 0;
