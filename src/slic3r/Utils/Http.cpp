@@ -16,8 +16,9 @@
 
 #ifdef OPENSSL_CERT_OVERRIDE
 #include <openssl/x509.h>
-#define L(s) s
 #endif
+
+#define L(s) s
 
 #include "libslic3r/libslic3r.h"
 #include "libslic3r/Utils.hpp"
