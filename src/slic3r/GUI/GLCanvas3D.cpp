@@ -2022,8 +2022,19 @@ void GLCanvas3D::render()
 
     // ensures this canvas is current and initialized
 #if ENABLE_NON_STATIC_CANVAS_MANAGER
-    if (!_is_shown_on_screen() || !_set_current() || !wxGetApp().init_opengl())
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    if (!_is_shown_on_screen())
         return;
+
+    if (m_context == nullptr)
+        m_context = wxGetApp().init_glcontext(*m_canvas);
+
+    if (!_set_current() || !wxGetApp().init_opengl())
+        return;
+
+//    if (!_is_shown_on_screen() || !_set_current() || !wxGetApp().init_opengl())
+//        return;
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     if (!is_initialized() && !init())
         return;
