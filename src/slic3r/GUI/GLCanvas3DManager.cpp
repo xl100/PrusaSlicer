@@ -11,6 +11,9 @@
 #if ENABLE_NON_STATIC_CANVAS_MANAGER
 #include <boost/log/trivial.hpp>
 #endif // ENABLE_NON_STATIC_CANVAS_MANAGER
+#if ENABLE_OPENGL_ERROR_LOGGING
+#include <boost/nowide/cenv.hpp>
+#endif // ENABLE_OPENGL_ERROR_LOGGING
 #include <wx/glcanvas.h>
 #include <wx/timer.h>
 #include <wx/msgdlg.h>
@@ -212,6 +215,9 @@ GLCanvas3DManager::EFramebufferType GLCanvas3DManager::s_framebuffers_type = GLC
 GLCanvas3DManager::EMultisampleState GLCanvas3DManager::s_multisample = GLCanvas3DManager::MS_Unknown;
 GLCanvas3DManager::EFramebufferType GLCanvas3DManager::s_framebuffers_type = GLCanvas3DManager::FB_None;
 #endif // ENABLE_NON_STATIC_CANVAS_MANAGER
+#if ENABLE_OPENGL_ERROR_LOGGING
+bool GLCanvas3DManager::s_error_log_enabled = false;
+#endif // ENABLE_OPENGL_ERROR_LOGGING
 
 #if ENABLE_HACK_CLOSING_ON_OSX_10_9_5
 #ifdef __APPLE__ 
@@ -372,6 +378,12 @@ void GLCanvas3DManager::init_gl()
 #endif
         	wxMessageBox(message, wxString("PrusaSlicer - ") + _(L("Unsupported OpenGL version")), wxOK | wxICON_ERROR);
         }
+
+#if ENABLE_OPENGL_ERROR_LOGGING
+        const char* err_log = boost::nowide::getenv("SLIC3R_OPENGLLOG");
+        if (err_log != nullptr && err_log[0] > '0')
+            s_error_log_enabled = true;
+#endif // ENABLE_OPENGL_ERROR_LOGGING
     }
 
 #if ENABLE_NON_STATIC_CANVAS_MANAGER

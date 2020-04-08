@@ -23,7 +23,8 @@
 #define DISABLE_INSTANCES_SYNCH 0
 // Use wxDataViewRender instead of wxDataViewCustomRenderer
 #define ENABLE_NONCUSTOM_DATA_VIEW_RENDERING 0
-
+// Enable error logging for OpenGL calls
+#define ENABLE_OPENGL_ERROR_LOGGING 1
 
 //================
 // 2.2.0.rc1 techs

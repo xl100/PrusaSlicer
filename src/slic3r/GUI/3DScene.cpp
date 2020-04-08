@@ -13,6 +13,9 @@
 #include "slic3r/GUI/BitmapCache.hpp"
 #include "libslic3r/Format/STL.hpp"
 #include "libslic3r/Utils.hpp"
+#if ENABLE_OPENGL_ERROR_LOGGING
+#include "GLCanvas3DManager.hpp"
+#endif // ENABLE_OPENGL_ERROR_LOGGING
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +31,30 @@
 
 #include <Eigen/Dense>
 
+#if ENABLE_OPENGL_ERROR_LOGGING
+void glAssertRecentCallImpl(const char* file_name, unsigned int line, const char* function_name)
+{
+    if (!Slic3r::GUI::GLCanvas3DManager::is_error_log_enabled())
+        return;
+
+    GLenum err = glGetError();
+    if (err == GL_NO_ERROR)
+        return;
+    const char* sErr = 0;
+    switch (err) {
+    case GL_INVALID_ENUM:       sErr = "Invalid Enum";      break;
+    case GL_INVALID_VALUE:      sErr = "Invalid Value";     break;
+    // be aware that GL_INVALID_OPERATION is generated if glGetError is executed between the execution of glBegin and the corresponding execution of glEnd 
+    case GL_INVALID_OPERATION:  sErr = "Invalid Operation"; break;
+    case GL_STACK_OVERFLOW:     sErr = "Stack Overflow";    break;
+    case GL_STACK_UNDERFLOW:    sErr = "Stack Underflow";   break;
+    case GL_OUT_OF_MEMORY:      sErr = "Out Of Memory";     break;
+    default:                    sErr = "Unknown";           break;
+    }
+    BOOST_LOG_TRIVIAL(error) << "OpenGL error in " << file_name << ":" << line << ", function " << function_name << "() : " << (int)err << " - " << sErr;
+    assert(false);
+}
+#else
 #ifdef HAS_GLSAFE
 void glAssertRecentCallImpl(const char *file_name, unsigned int line, const char *function_name)
 {
@@ -49,6 +76,7 @@ void glAssertRecentCallImpl(const char *file_name, unsigned int line, const char
     assert(false);
 }
 #endif
+#endif // ENABLE_OPENGL_ERROR_LOGGING
 
 namespace Slic3r {
 

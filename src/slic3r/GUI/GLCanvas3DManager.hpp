@@ -143,6 +143,9 @@ private:
     static bool s_compressed_textures_supported;
     static EMultisampleState s_multisample;
     static EFramebufferType s_framebuffers_type;
+#if ENABLE_OPENGL_ERROR_LOGGING
+    static bool s_error_log_enabled;
+#endif // ENABLE_OPENGL_ERROR_LOGGING
 
 public:
 #if ENABLE_NON_STATIC_CANVAS_MANAGER
@@ -186,6 +189,9 @@ public:
     static bool are_framebuffers_supported() { return (s_framebuffers_type != FB_None); }
 #endif // ENABLE_NON_STATIC_CANVAS_MANAGER
     static EFramebufferType get_framebuffers_type() { return s_framebuffers_type; }
+#if ENABLE_OPENGL_ERROR_LOGGING
+    static bool is_error_log_enabled() { return s_error_log_enabled; }
+#endif // ENABLE_OPENGL_ERROR_LOGGING
 
 #if ENABLE_NON_STATIC_CANVAS_MANAGER
     static wxGLCanvas* create_wxglcanvas(wxWindow& parent);
