@@ -77,9 +77,7 @@ bool View3D::init(wxWindow* parent, Bed3D& bed, Camera& camera, GLToolbar& view_
         return false;
 
     m_canvas = new GLCanvas3D(m_canvas_widget);
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-//    m_canvas->set_context(wxGetApp().init_glcontext(*m_canvas_widget));
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    m_canvas->set_context(wxGetApp().init_glcontext(*m_canvas_widget));
     m_canvas->bind_event_handlers();
 #else
     m_canvas_widget = GLCanvas3DManager::create_wxglcanvas(this);
@@ -259,9 +257,7 @@ bool Preview::init(wxWindow* parent, Bed3D& bed, Camera& camera, GLToolbar& view
         return false;
 
     m_canvas = new GLCanvas3D(m_canvas_widget);
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-//    m_canvas->set_context(wxGetApp().init_glcontext(*m_canvas_widget));
-//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    m_canvas->set_context(wxGetApp().init_glcontext(*m_canvas_widget));
     m_canvas->bind_event_handlers();
 #else
     m_canvas_widget = GLCanvas3DManager::create_wxglcanvas(this);
