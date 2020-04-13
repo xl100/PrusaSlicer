@@ -5,6 +5,7 @@
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/MTUtils.hpp"
 #include "libslic3r/PrintConfig.hpp"
+#include "libslic3r/SLA/RasterBase.hpp"
 
 #include <wx/wfstream.h>
 #include <wx/zipstrm.h>
@@ -56,6 +57,37 @@ ExPolygons rings_to_expolygons(const std::vector<marchsq::Ring> &rings,
     return union_ex(polys);
 }
 
+template<class Fn> void foreach_vertex(ExPolygon &poly, Fn &&fn)
+{
+    for (auto &p : poly.contour.points) fn(p);
+    for (auto &h : poly.holes)
+        for (auto &p : h.points) fn(p);
+}
+
+void invert_raster_trafo(ExPolygons &                  expolys,
+                         const sla::RasterBase::Trafo &trafo,
+                         coord_t                       width,
+                         coord_t                       height)
+{
+    for (auto &expoly : expolys) {
+        if (trafo.mirror_y)
+            foreach_vertex(expoly, [height](Point &p) {p.y() = height - p.y(); });
+        
+        if (trafo.mirror_x)
+            foreach_vertex(expoly, [width](Point &p) {p.x() = width - p.x(); });
+        
+        expoly.translate(-trafo.center_x, -trafo.center_y);
+        
+        if (trafo.flipXY)
+            foreach_vertex(expoly, [](Point &p) { std::swap(p.x(), p.y()); });
+        
+        if ((trafo.mirror_x + trafo.mirror_y + trafo.flipXY) % 2) {
+            expoly.contour.reverse();
+            for (auto &h : expoly.holes) h.reverse();
+        }
+    }
+}
+
 TriangleMesh import_model_from_sla_zip(const wxString &zipfname)
 {
     wxFileInputStream in(zipfname);
@@ -101,13 +133,6 @@ TriangleMesh import_model_from_sla_zip(const wxString &zipfname)
     
     DynamicPrintConfig profile;
     profile.load(profile_tree);
-        
-    size_t disp_cols = profile.opt_int("display_pixels_x");
-    size_t disp_rows = profile.opt_int("display_pixels_y");
-    double disp_w    = profile.opt_float("display_width");
-    double disp_h    = profile.opt_float("display_height");
-    double px_w      = disp_w / disp_cols;
-    double px_h      = disp_h / disp_rows;
     
     auto jobdir = config.get<std::string>("jobDir");
     for (auto &c : jobdir) c = std::tolower(c);
@@ -117,19 +142,49 @@ TriangleMesh import_model_from_sla_zip(const wxString &zipfname)
             wxFileName(it->first).GetExt().Lower() != "png")
             it = files.erase(it);
         else ++it;
+    
+    auto *opt_disp_cols = profile.option<ConfigOptionInt>("display_pixels_x");
+    auto *opt_disp_rows = profile.option<ConfigOptionInt>("display_pixels_y");
+    auto *opt_disp_w    = profile.option<ConfigOptionFloat>("display_width");
+    auto *opt_disp_h    = profile.option<ConfigOptionFloat>("display_height");
+    auto *opt_mirror_x  = profile.option<ConfigOptionBool>("display_mirror_x");
+    auto *opt_mirror_y  = profile.option<ConfigOptionBool>("display_mirror_y");
+    auto *opt_orient    = profile.option<ConfigOptionEnum<SLADisplayOrientation>>("display_orientation");
 
+    if (!opt_disp_cols || !opt_disp_rows || !opt_disp_w || !opt_disp_h ||
+        !opt_mirror_x || !opt_mirror_y || !opt_orient)
+        throw std::runtime_error("Invalid SL1 file");
+    
+    double px_w = opt_disp_w->value / opt_disp_cols->value;
+    double px_h = opt_disp_h->value / opt_disp_rows->value;
+
+    sla::RasterBase::Orientation orientation =
+        opt_orient->value == sladoLandscape ? sla::RasterBase::roLandscape :
+                                              sla::RasterBase::roPortrait;
+    
+    sla::RasterBase::TMirroring mirror{opt_mirror_x->value, opt_mirror_y->value};
+    sla::RasterBase::Trafo trafo{orientation, mirror};
+    coord_t height = scaled(opt_disp_h->value), width = scaled(opt_disp_w->value);
+    
     std::vector<ExPolygons> slices(files.size());
-    size_t i = 0;
-    for (auto &item : files) {
-        wxMemoryOutputStream &imagedata = item.second;
+    std::vector<std::reference_wrapper<wxMemoryOutputStream>> streams;
+    streams.reserve(files.size());
+    for (auto &item : files) streams.emplace_back(std::ref(item.second));
+    
+    tbb::parallel_for(size_t(0), files.size(),
+                      [&streams, &slices, px_h, px_w, trafo, width, height](size_t i) {
+                          
+        wxMemoryOutputStream &imagedata = streams[i];
         wxMemoryInputStream stream{imagedata};
-        wxImage img{stream, "image/png"};
-        
-        std::cout << img.GetWidth() << " " << img.GetHeight() << std::endl;
+        wxImage img{stream};
         
         auto rings = marchsq::execute(img, 128);
-        slices[i++] = rings_to_expolygons(rings, px_w, px_h);
-    }
+        ExPolygons expolys = rings_to_expolygons(rings, px_w, px_h);
+        
+        invert_raster_trafo(expolys, trafo, width, height);
+        
+        slices[i] = std::move(expolys);
+    });
     
     TriangleMesh out;
     if (!slices.empty()) {
