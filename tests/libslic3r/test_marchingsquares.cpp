@@ -17,6 +17,11 @@
 
 using namespace Slic3r;
 
+static double area(const sla::RasterBase::PixelDim &pxd)
+{
+    return pxd.w_mm * pxd.h_mm;
+}
+
 static Slic3r::sla::RasterGrayscaleAA create_raster(
     const sla::RasterBase::Resolution &res,
     double                             disp_w = 100.,
@@ -26,10 +31,8 @@ static Slic3r::sla::RasterGrayscaleAA create_raster(
     
     auto bb = BoundingBox({0, 0}, {scaled(disp_w), scaled(disp_h)});
     sla::RasterBase::Trafo trafo;
-//    trafo.center_x = bb.center().x();
-//    trafo.center_y = bb.center().y();
-//    trafo.center_x = scaled(pixdim.w_mm);
-//    trafo.center_y = scaled(pixdim.h_mm);
+    trafo.center_x = bb.center().x();
+    trafo.center_y = bb.center().y();
 
     return sla::RasterGrayscaleAA{res, pixdim, trafo, agg::gamma_threshold(.5)};
 }
@@ -96,6 +99,16 @@ static void test_expolys(Rst &&             rst,
     svg.draw(extracted);
     svg.Close();
     
+    double max_rel_err = 0.1;
+    sla::RasterBase::PixelDim pxd = rst.pixel_dimensions();
+    double max_abs_err = area(pxd) * scaled(1.) * scaled(1.);
+    
+    BoundingBox ref_bb;
+    for (auto &expoly : ref) ref_bb.merge(expoly.contour.bounding_box());
+    
+    double max_displacement = 4. * (std::pow(pxd.h_mm, 2) + std::pow(pxd.w_mm, 2));
+    max_displacement *= scaled<double>(1.) * scaled(1.);
+    
     REQUIRE(extracted.size() == ref.size());
     for (size_t i = 0; i < ref.size(); ++i) {
         REQUIRE(extracted[i].contour.is_counter_clockwise());
@@ -104,7 +117,16 @@ static void test_expolys(Rst &&             rst,
         for (auto &h : extracted[i].holes) REQUIRE(h.is_clockwise());
         
         double refa = ref[i].area();
-        REQUIRE(std::abs(extracted[i].area() - refa) < 0.1 * refa);
+        double abs_err = std::abs(extracted[i].area() - refa);
+        double rel_err = abs_err / refa;
+        
+        REQUIRE((rel_err <= max_rel_err || abs_err <= max_abs_err));
+        
+        BoundingBox bb;
+        for (auto &expoly : extracted) bb.merge(expoly.contour.bounding_box());
+        
+        Point d = bb.center() - ref_bb.center();
+        REQUIRE(double(d.transpose() * d) <= max_displacement);
     }
 }
 
@@ -128,6 +150,17 @@ TEST_CASE("Marching squares directions", "[MarchingSquares]") {
                  
     REQUIRE(step(crd, marchsq::__impl::Dir::up).r == 0);
     REQUIRE(step(crd, marchsq::__impl::Dir::up).c == 1);
+}
+
+TEST_CASE("Fully covered raster should result in a rectangle", "[MarchsqPadding]") {
+
+    ExPolygon rect = square(100.);
+    auto rst = create_raster({100, 100});
+    rst.draw(rect);
+    ExPolygons extracted = sla::raster_to_polygons(rst);
+
+    REQUIRE(extracted.size() == 1);
+    REQUIRE(extracted.front().area() == Approx(rect.area()));
 }
 
 TEST_CASE("4x4 raster with one ring", "[MarchingSquares]") {
@@ -338,5 +371,5 @@ static void recreate_object_from_rasters(const std::string &objname, float lh) {
 }
 
 TEST_CASE("Recreate object from rasters", "[SL1Import]") {
-    recreate_object_from_rasters("triang.obj", 0.05f);
+    recreate_object_from_rasters("extruder_idler.obj", 0.05f);
 }
