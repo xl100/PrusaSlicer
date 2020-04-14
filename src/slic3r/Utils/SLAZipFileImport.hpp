@@ -7,7 +7,8 @@
 
 namespace Slic3r {
 
-TriangleMesh import_model_from_sla_zip(const wxString &zipfname);
+TriangleMesh import_model_from_sla_zip(const wxString &zipfname,
+                                       Point windowsize = {4, 4});
 
 }
 

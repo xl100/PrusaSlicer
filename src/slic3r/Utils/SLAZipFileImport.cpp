@@ -88,8 +88,30 @@ void invert_raster_trafo(ExPolygons &                  expolys,
     }
 }
 
-TriangleMesh import_model_from_sla_zip(const wxString &zipfname)
+void extract_ini(const std::string &path,
+              std::map<std::string, wxMemoryOutputStream> &archive,
+              boost::property_tree::ptree &tree)
 {
+    auto it = archive.find(path);
+    if (it != archive.end()) {
+        wxString str;
+        wxStringOutputStream oss{&str};
+        wxMemoryInputStream inp{it->second};
+        oss.Write(inp);
+        std::stringstream iss(str.ToStdString());
+        boost::property_tree::read_ini(iss, tree);
+        archive.erase(it);
+    } else {
+        throw std::runtime_error(path + " is missing");
+    }
+}
+
+TriangleMesh import_model_from_sla_zip(const wxString &zipfname, Point windowsize)
+{
+    // Ensure minimum window size for marching squares
+    windowsize.x() = std::max(2, windowsize.x());
+    windowsize.y() = std::max(2, windowsize.y());
+    
     wxFileInputStream in(zipfname);
     wxZipInputStream zip(in, wxConvUTF8);
     
@@ -106,30 +128,12 @@ TriangleMesh import_model_from_sla_zip(const wxString &zipfname)
         
         wxMemoryOutputStream &stream = files[name_lo.ToStdString()];
         zip.Read(stream);
-        std::cout << name_lo << " read bytes: " << zip.LastRead() << std::endl;
         if (!zip.LastRead()) std::cout << zip.GetLastError() << std::endl;
     }
     
-    using boost::property_tree::ptree;
-    
-    auto load_ini = [&files](const std::string &key, ptree &tree) {
-        auto it = files.find(key);
-        if (it != files.end()) {
-            wxString str;
-            wxStringOutputStream oss{&str};
-            wxMemoryInputStream inp{it->second};
-            oss.Write(inp);
-            std::stringstream iss(str.ToStdString());
-            boost::property_tree::read_ini(iss, tree);
-            files.erase(it);
-        } else {
-            throw std::runtime_error(key + " is missing");
-        }   
-    };
-    
-    ptree profile_tree, config;
-    load_ini("prusaslicer.ini", profile_tree);
-    load_ini("config.ini", config);    
+    boost::property_tree::ptree profile_tree, config;
+    extract_ini("prusaslicer.ini", files, profile_tree);
+    extract_ini("config.ini", files, config);    
     
     DynamicPrintConfig profile;
     profile.load(profile_tree);
@@ -155,33 +159,43 @@ TriangleMesh import_model_from_sla_zip(const wxString &zipfname)
         !opt_mirror_x || !opt_mirror_y || !opt_orient)
         throw std::runtime_error("Invalid SL1 file");
     
-    double px_w = opt_disp_w->value / opt_disp_cols->value;
-    double px_h = opt_disp_h->value / opt_disp_rows->value;
+    struct RasterParams {
+        sla::RasterBase::Trafo trafo;   // Raster transformations
+        coord_t width, height;      // scaled raster dimensions (not resolution)
+        double px_h, px_w;          // pixel dimesions
+        marchsq::Coord win;         // marching squares window size
+    } rstp;
+        
+    rstp.px_w = opt_disp_w->value / opt_disp_cols->value;
+    rstp.px_h = opt_disp_h->value / opt_disp_rows->value;
 
-    sla::RasterBase::Orientation orientation =
-        opt_orient->value == sladoLandscape ? sla::RasterBase::roLandscape :
-                                              sla::RasterBase::roPortrait;
+    sla::RasterBase::Trafo trafo{opt_orient->value == sladoLandscape ?
+                                     sla::RasterBase::roLandscape :
+                                     sla::RasterBase::roPortrait,
+                                 {opt_mirror_x->value, opt_mirror_y->value}};
     
-    sla::RasterBase::TMirroring mirror{opt_mirror_x->value, opt_mirror_y->value};
-    sla::RasterBase::Trafo trafo{orientation, mirror};
-    coord_t height = scaled(opt_disp_h->value), width = scaled(opt_disp_w->value);
+    rstp.height = scaled(opt_disp_h->value);
+    rstp.width  = scaled(opt_disp_w->value);
     
     std::vector<ExPolygons> slices(files.size());
     std::vector<std::reference_wrapper<wxMemoryOutputStream>> streams;
     streams.reserve(files.size());
     for (auto &item : files) streams.emplace_back(std::ref(item.second));
     
+    rstp.win = {size_t(windowsize.x()), size_t(windowsize.y())};
+    
     tbb::parallel_for(size_t(0), files.size(),
-                      [&streams, &slices, px_h, px_w, trafo, width, height](size_t i) {
+                      [&streams, &slices, &rstp](size_t i) {
                           
         wxMemoryOutputStream &imagedata = streams[i];
         wxMemoryInputStream stream{imagedata};
         wxImage img{stream};
         
-        auto rings = marchsq::execute(img, 128);
-        ExPolygons expolys = rings_to_expolygons(rings, px_w, px_h);
+        auto rings = marchsq::execute(img, 128, rstp.win);
+        ExPolygons expolys = rings_to_expolygons(rings, rstp.px_w, rstp.px_h);
         
-        invert_raster_trafo(expolys, trafo, width, height);
+        // Invert the raster transformations indicated in the profile metadata
+        invert_raster_trafo(expolys, rstp.trafo, rstp.width, rstp.height);
         
         slices[i] = std::move(expolys);
     });
