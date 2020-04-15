@@ -4650,13 +4650,23 @@ void Plater::add_model()
 
 void Plater::import_sl1_archive()
 {
+    static wxCheckBox * import_profile_chbx = nullptr;
+    
     wxFileDialog dlg(this, _(L("Choose SL1 archive:")),
                      from_u8(wxGetApp().app_config->get_last_dir()), "",
-                     "SL1 archive files (*.sl1)|*.sl1;*.SL1;*.zip;*.ZIP",
+                     "SL1 archive files (*.sl1, *.zip)|*.sl1;*.SL1;*.zip;*.ZIP",
                      wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    
+    dlg.SetExtraControlCreator([](wxWindow *parent) -> wxWindow* {
+        return import_profile_chbx =
+                   new wxCheckBox(parent, wxID_ANY, "Import profile settings");
+    });
 
     if (dlg.ShowModal() == wxID_OK) {
         try {
+            if (import_profile_chbx && import_profile_chbx->GetValue())
+                ;  // TODO: import the profile as well
+                
             TriangleMesh mesh = import_model_from_sla_zip(dlg.GetPath());
             p->sidebar->obj_list()->load_mesh_object(mesh, wxFileName(dlg.GetPath()).GetName());
         } catch (std::exception &ex) {
