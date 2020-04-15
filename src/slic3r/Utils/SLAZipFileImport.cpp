@@ -165,9 +165,9 @@ TriangleMesh import_model_from_sla_zip(const wxString &zipfname, Point windowsiz
         double px_h, px_w;          // pixel dimesions
         marchsq::Coord win;         // marching squares window size
     } rstp;
-        
-    rstp.px_w = opt_disp_w->value / opt_disp_cols->value;
-    rstp.px_h = opt_disp_h->value / opt_disp_rows->value;
+    
+    rstp.px_w = opt_disp_w->value / (opt_disp_cols->value - 1);
+    rstp.px_h = opt_disp_h->value / (opt_disp_rows->value - 1);
 
     sla::RasterBase::Trafo trafo{opt_orient->value == sladoLandscape ?
                                      sla::RasterBase::roLandscape :
@@ -182,7 +182,7 @@ TriangleMesh import_model_from_sla_zip(const wxString &zipfname, Point windowsiz
     streams.reserve(files.size());
     for (auto &item : files) streams.emplace_back(std::ref(item.second));
     
-    rstp.win = {size_t(windowsize.x()), size_t(windowsize.y())};
+    rstp.win = {windowsize.x(), windowsize.y()};
     
     tbb::parallel_for(size_t(0), files.size(),
                       [&streams, &slices, &rstp](size_t i) {

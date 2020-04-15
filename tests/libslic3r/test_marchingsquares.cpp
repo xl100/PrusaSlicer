@@ -97,6 +97,7 @@ static void test_expolys(Rst &&             rst,
     
     SVG svg(name + ".svg");
     svg.draw(extracted);
+    svg.draw(ref, "green");
     svg.Close();
     
     double max_rel_err = 0.1;
@@ -152,15 +153,18 @@ TEST_CASE("Marching squares directions", "[MarchingSquares]") {
     REQUIRE(step(crd, marchsq::__impl::Dir::up).c == 1);
 }
 
-TEST_CASE("Fully covered raster should result in a rectangle", "[MarchsqPadding]") {
+TEST_CASE("Fully covered raster should result in a rectangle", "[MarchingSquares]") {
+    auto rst = create_raster({4, 4}, 4., 4.);
+    
+    ExPolygon rect = square(4);
 
-    ExPolygon rect = square(100.);
-    auto rst = create_raster({100, 100});
-    rst.draw(rect);
-    ExPolygons extracted = sla::raster_to_polygons(rst);
-
-    REQUIRE(extracted.size() == 1);
-    REQUIRE(extracted.front().area() == Approx(rect.area()));
+    SECTION("Full accuracy") {
+        test_expolys(rst, {rect}, 1.f, "fully_covered_full_acc");
+    }
+    
+    SECTION("Half accuracy") {
+        test_expolys(rst, {rect}, .5f, "fully_covered_half_acc");
+    }
 }
 
 TEST_CASE("4x4 raster with one ring", "[MarchingSquares]") {
@@ -168,17 +172,17 @@ TEST_CASE("4x4 raster with one ring", "[MarchingSquares]") {
     sla::RasterBase::PixelDim pixdim{1, 1};
     
     // We need one additional row and column to detect edges
-    sla::RasterGrayscaleAA rst{{5, 5}, pixdim, {}, agg::gamma_threshold(.5)};
+    sla::RasterGrayscaleAA rst{{4, 4}, pixdim, {}, agg::gamma_threshold(.5)};
     
     // Draw a triangle from individual pixels
+    rst.draw(square(1., {0500000, 0500000}));
+    rst.draw(square(1., {1500000, 0500000}));
+    rst.draw(square(1., {2500000, 0500000}));
+    
     rst.draw(square(1., {1500000, 1500000}));
     rst.draw(square(1., {2500000, 1500000}));
-    rst.draw(square(1., {3500000, 1500000}));
     
     rst.draw(square(1., {2500000, 2500000}));
-    rst.draw(square(1., {3500000, 2500000}));
-    
-    rst.draw(square(1., {3500000, 3500000}));
     
     std::fstream out("4x4.png", std::ios::out);
     out << rst.encode(sla::PNGRasterEncoder{});
@@ -301,27 +305,13 @@ TEST_CASE("Circle with hole in the middle", "[MarchingSquares]") {
     test_expolys(create_raster({100, 100}), circle_with_hole(25.), 1.f, "circle_with_hole");   
 }
 
-static void recreate_object_from_slices(const std::string &objname, float lh) {
-    TriangleMesh mesh = load_model(objname);
-    mesh.require_shared_vertices();
-    
-    auto bb = mesh.bounding_box();
-    std::vector<ExPolygons> layers;
-    slice_mesh(mesh, grid(float(bb.min.z()), float(bb.max.z()), lh), layers, 0.f, []{});
-    
-    TriangleMesh out = slices_to_triangle_mesh(layers, bb.min.z(), double(lh), double(lh));
-    
-    out.require_shared_vertices();
-    out.WriteOBJFile("out_from_slices.obj");
-}
-
 static void recreate_object_from_rasters(const std::string &objname, float lh) {
     TriangleMesh mesh = load_model(objname);
     
     auto bb = mesh.bounding_box();
-//    Vec3f tr = -bb.center().cast<float>();
-//    mesh.translate(tr.x(), tr.y(), tr.z());
-//    bb = mesh.bounding_box();
+    Vec3f tr = -bb.center().cast<float>();
+    mesh.translate(tr.x(), tr.y(), tr.z());
+    bb = mesh.bounding_box();
     
     std::vector<ExPolygons> layers;
     slice_mesh(mesh, grid(float(bb.min.z()) + lh, float(bb.max.z()), lh), layers, 0.f, []{});
@@ -344,7 +334,7 @@ static void recreate_object_from_rasters(const std::string &objname, float lh) {
         
         ExPolygons layer_ = sla::raster_to_polygons(rst);
 //        float delta = scaled(std::min(rst.pixel_dimensions().h_mm,
-//                                      rst.pixel_dimensions().w_mm));
+//                                      rst.pixel_dimensions().w_mm)) / 2;
         
 //        layer_ = expolygons_simplify(layer_, delta);
         
