@@ -106,14 +106,14 @@ void extract_ini(const std::string &path,
     }
 }
 
-TriangleMesh import_model_from_sla_zip(const wxString &zipfname, Point windowsize)
+TriangleMesh import_model_from_sla_zip(const wxString &zipfname, Vec2i windowsize)
 {
     // Ensure minimum window size for marching squares
     windowsize.x() = std::max(2, windowsize.x());
     windowsize.y() = std::max(2, windowsize.y());
     
     wxFileInputStream in(zipfname);
-    wxZipInputStream zip(in, wxConvUTF8);
+    wxZipInputStream  zip(in, wxConvUTF8);
     
     std::map<std::string, wxMemoryOutputStream> files;
     
@@ -182,7 +182,7 @@ TriangleMesh import_model_from_sla_zip(const wxString &zipfname, Point windowsiz
     streams.reserve(files.size());
     for (auto &item : files) streams.emplace_back(std::ref(item.second));
     
-    rstp.win = {windowsize.x(), windowsize.y()};
+    rstp.win = {windowsize.y(), windowsize.x()};
     
     tbb::parallel_for(size_t(0), files.size(),
                       [&streams, &slices, &rstp](size_t i) {

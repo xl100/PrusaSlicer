@@ -81,10 +81,13 @@ static ExPolygons circle_with_hole(double r, Point center = {0, 0}) {
     return {poly};
 }
 
+static const Vec2i W4x4 = {4, 4};
+static const Vec2i W2x2 = {2, 2};
+
 template<class Rst>
 static void test_expolys(Rst &&             rst,
                          const ExPolygons & ref,
-                         float accuracy,
+                         Vec2i window,
                          const std::string &name = "test")
 {
     for (const ExPolygon &expoly : ref) rst.draw(expoly);
@@ -93,7 +96,7 @@ static void test_expolys(Rst &&             rst,
     out << rst.encode(sla::PNGRasterEncoder{});
     out.close();
     
-    ExPolygons extracted = sla::raster_to_polygons(rst, accuracy);
+    ExPolygons extracted = sla::raster_to_polygons(rst, window);
     
     SVG svg(name + ".svg");
     svg.draw(extracted);
@@ -159,11 +162,11 @@ TEST_CASE("Fully covered raster should result in a rectangle", "[MarchingSquares
     ExPolygon rect = square(4);
 
     SECTION("Full accuracy") {
-        test_expolys(rst, {rect}, 1.f, "fully_covered_full_acc");
+        test_expolys(rst, {rect}, W2x2, "fully_covered_full_acc");
     }
     
     SECTION("Half accuracy") {
-        test_expolys(rst, {rect}, .5f, "fully_covered_half_acc");
+        test_expolys(rst, {rect}, W4x4, "fully_covered_half_acc");
     }
 }
 
@@ -259,50 +262,50 @@ TEST_CASE("Square with hole in the middle", "[MarchingSquares]") {
     ExPolygons inp = {square_with_hole(50.)};
     
     SECTION("Proportional raster, 1x1 mm pixel size, full accuracy") {
-        test_expolys(create_raster({100, 100}, 100., 100.), inp, 1.f, "square_with_hole_proportional_1x1_mm_px_full");
+        test_expolys(create_raster({100, 100}, 100., 100.), inp, W2x2, "square_with_hole_proportional_1x1_mm_px_full");
     }
     
     SECTION("Proportional raster, 1x1 mm pixel size, half accuracy") {
-        test_expolys(create_raster({100, 100}, 100., 100.), inp, .5f, "square_with_hole_proportional_1x1_mm_px_half");
+        test_expolys(create_raster({100, 100}, 100., 100.), inp, W4x4, "square_with_hole_proportional_1x1_mm_px_half");
     }
     
     SECTION("Landscape raster, 1x1 mm pixel size, full accuracy") {
-        test_expolys(create_raster({150, 100}, 150., 100.), inp, 1.f, "square_with_hole_landsc_1x1_mm_px_full");
+        test_expolys(create_raster({150, 100}, 150., 100.), inp, W2x2, "square_with_hole_landsc_1x1_mm_px_full");
     }
     
     SECTION("Landscape raster, 1x1 mm pixel size, half accuracy") {
-        test_expolys(create_raster({150, 100}, 150., 100.), inp, .5f, "square_with_hole_landsc_1x1_mm_px_half");
+        test_expolys(create_raster({150, 100}, 150., 100.), inp, W4x4, "square_with_hole_landsc_1x1_mm_px_half");
     }
     
     SECTION("Portrait raster, 1x1 mm pixel size, full accuracy") {
-        test_expolys(create_raster({100, 150}, 100., 150.), inp, 1.f, "square_with_hole_portrait_1x1_mm_px_full");
+        test_expolys(create_raster({100, 150}, 100., 150.), inp, W2x2, "square_with_hole_portrait_1x1_mm_px_full");
     }
     
     SECTION("Portrait raster, 1x1 mm pixel size, half accuracy") {
-        test_expolys(create_raster({100, 150}, 100., 150.), inp, .5f, "square_with_hole_portrait_1x1_mm_px_half");
+        test_expolys(create_raster({100, 150}, 100., 150.), inp, W4x4, "square_with_hole_portrait_1x1_mm_px_half");
     }
     
     SECTION("Proportional raster, 2x2 mm pixel size, full accuracy") {
-        test_expolys(create_raster({200, 200}, 100., 100.), inp, 1.f, "square_with_hole_proportional_2x2_mm_px_full");
+        test_expolys(create_raster({200, 200}, 100., 100.), inp, W2x2, "square_with_hole_proportional_2x2_mm_px_full");
     }
     
     SECTION("Proportional raster, 2x2 mm pixel size, half accuracy") {
-        test_expolys(create_raster({200, 200}, 100., 100.), inp, .5f, "square_with_hole_proportional_2x2_mm_px_half");
+        test_expolys(create_raster({200, 200}, 100., 100.), inp, W4x4, "square_with_hole_proportional_2x2_mm_px_half");
     }
     
     SECTION("Proportional raster, 0.5x0.5 mm pixel size, full accuracy") {
-        test_expolys(create_raster({50, 50}, 100., 100.), inp, 1.f, "square_with_hole_proportional_0.5x0.5_mm_px_full");
+        test_expolys(create_raster({50, 50}, 100., 100.), inp, W2x2, "square_with_hole_proportional_0.5x0.5_mm_px_full");
     }
     
     SECTION("Proportional raster, 0.5x0.5 mm pixel size, half accuracy") {
-        test_expolys(create_raster({50, 50}, 100., 100.), inp, .5f, "square_with_hole_proportional_0.5x0.5_mm_px_half");
+        test_expolys(create_raster({50, 50}, 100., 100.), inp, W4x4, "square_with_hole_proportional_0.5x0.5_mm_px_half");
     }
 }
 
 TEST_CASE("Circle with hole in the middle", "[MarchingSquares]") {
     using namespace Slic3r;
     
-    test_expolys(create_raster({100, 100}), circle_with_hole(25.), 1.f, "circle_with_hole");   
+    test_expolys(create_raster({1000, 1000}), circle_with_hole(25.), W2x2, "circle_with_hole");   
 }
 
 static void recreate_object_from_rasters(const std::string &objname, float lh) {
