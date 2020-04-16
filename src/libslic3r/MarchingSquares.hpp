@@ -417,7 +417,7 @@ std::vector<marchsq::Ring> execute_with_policy(ExecutionPolicy &&   policy,
     
     if (!windowsize.r) windowsize.r = 2;
     if (!windowsize.c)
-        windowsize.c = std::max(size_t(2), windowsize.r * ratio);
+        windowsize.c = std::max(2l, long(windowsize.r * ratio));
     
     Coord overlap{1};
     

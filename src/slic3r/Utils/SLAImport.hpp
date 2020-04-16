@@ -1,5 +1,5 @@
-#ifndef SLAZIPFILEIMPORT_HPP
-#define SLAZIPFILEIMPORT_HPP
+#ifndef SLAIMPORT_HPP
+#define SLAIMPORT_HPP
 
 #include <functional>
 
@@ -31,6 +31,6 @@ inline void import_sla_archive(
     import_sla_archive(zipfname, windowsize, out, profile, progr);
 }
 
-} // namespace Slic3r
+}
 
-#endif // SLAZIPFILEIMPORT_HPP
+#endif // SLAIMPORT_HPP

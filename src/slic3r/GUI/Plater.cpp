@@ -80,7 +80,7 @@
 #include "../Utils/PrintHost.hpp"
 #include "../Utils/FixModelByWin10.hpp"
 #include "../Utils/UndoRedo.hpp"
-#include "../Utils/SLAZipFileImport.hpp"
+#include "../Utils/SLAImport.hpp"
 #include "RemovableDriveManager.hpp"
 #if ENABLE_NON_STATIC_CANVAS_MANAGER
 #ifdef __APPLE__
