@@ -1,15 +1,36 @@
 #ifndef SLAZIPFILEIMPORT_HPP
 #define SLAZIPFILEIMPORT_HPP
 
-#include "libslic3r/TriangleMesh.hpp"
+#include <functional>
 
-#include <wx/string.h>
+#include <libslic3r/Point.hpp>
+#include <libslic3r/TriangleMesh.hpp>
+#include <libslic3r/PrintConfig.hpp>
 
 namespace Slic3r {
 
-TriangleMesh import_model_from_sla_zip(const wxString &zipfname,
-                                       Vec2i windowsize = {4, 4});
+class TriangleMesh;
+class DynamicPrintConfig;
 
+void import_sla_archive(const std::string &zipfname, DynamicPrintConfig &out);
+
+void import_sla_archive(
+    const std::string &      zipfname,
+    Vec2i                    windowsize,
+    TriangleMesh &           out,
+    DynamicPrintConfig &     profile,
+    std::function<bool(int)> progr = [](int) { return true; });
+
+inline void import_sla_archive(
+    const std::string &      zipfname,
+    Vec2i                    windowsize,
+    TriangleMesh &           out,
+    std::function<bool(int)> progr = [](int) { return true; })
+{
+    DynamicPrintConfig profile;
+    import_sla_archive(zipfname, windowsize, out, profile, progr);
 }
+
+} // namespace Slic3r
 
 #endif // SLAZIPFILEIMPORT_HPP

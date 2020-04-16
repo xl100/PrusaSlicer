@@ -1564,7 +1564,8 @@ struct Plater::priv
 
     enum class Jobs : size_t {
         Arrange,
-        Rotoptimize
+        Rotoptimize,
+        ImportSLA,
     };
 
     class ArrangeJob : public PlaterJob
@@ -1736,7 +1737,123 @@ struct Plater::priv
         using PlaterJob::PlaterJob;
         void process() override;
     };
+    
+    class SLAImportJob : public PlaterJob {
+        wxFileDialog m_dlg;
+        int m_dlg_ret = wxID_CANCEL;
+        
+        TriangleMesh m_mesh;
+        DynamicPrintConfig m_profile;
+        std::string m_err;
+        
+        // TODO: make this a member var
+        static wxComboBox *import_profile_cbx;
+    public:
+        SLAImportJob(priv *prv)
+            : PlaterJob(prv)
+            , m_dlg{prv->q, _(L("Choose SL1 archive:")),
+                  from_u8(wxGetApp().app_config->get_last_dir()), "",
+                  "SL1 archive files (*.sl1, *.zip)|*.sl1;*.SL1;*.zip;*.ZIP",
+                  wxFD_OPEN | wxFD_FILE_MUST_EXIST}
+        { 
+            m_dlg.SetExtraControlCreator([](wxWindow *parent) -> wxWindow * {
+                std::vector<wxString> choices = {
+                    _(L("Import model and profile")),
+                    _(L("Import profile only")),
+                    _(L("Import model only"))
+                };
+                
+                return import_profile_cbx =
+                           new wxComboBox(parent, wxID_ANY, choices[0],
+                                          wxDefaultPosition, wxDefaultSize,
+                                          choices.size(), choices.data(),
+                                          wxCB_READONLY | wxCB_DROPDOWN);
+            });
+        }
+        
+        void process() override
+        {
+            enum Sel { modelAndProfile, profileOnly, modelOnly};
+            
+            auto progr = [this](int s) {
+                if (s < 100) update_status(int(s), _L("Importing SLA archive"));
+                return !was_canceled();
+            };
+            
+            if (m_dlg_ret != wxID_OK) return;
+            
+            try {
+                if (import_profile_cbx) {
+                    auto name = m_dlg.GetPath().ToStdString();
+                    int sel = import_profile_cbx->GetSelection();
+                    switch (Sel(sel)) {
+                    case modelAndProfile:
+                        import_sla_archive(name, {2, 2}, m_mesh, m_profile, progr);
+                        break;
+                    case modelOnly:
+                        import_sla_archive(name, {2, 2}, m_mesh, progr);
+                        break;
+                    case profileOnly:
+                        import_sla_archive(name, m_profile);
+                        break;
+                    }
+                }
+            } catch (std::exception &ex) {
+                m_err = ex.what();
+            }
 
+            update_status(100, was_canceled() ? _L("Importing canceled.") :
+                                                _L("Importing done."));
+        }
+        
+    protected:
+        void prepare() override
+        {
+            m_mesh = {};
+            m_profile = {};
+            m_dlg_ret = m_dlg.ShowModal();
+        }
+
+        void finalize() override
+        {
+            // Ignore the arrange result if aborted.
+            if (was_canceled()) return;
+
+            if (!m_err.empty()) {
+                show_error(plater().q, m_err);
+                m_err = "";
+                return;
+            }
+            
+            auto name = wxFileName(m_dlg.GetPath()).GetName().ToStdString();
+            
+            // TODO load profile
+            if (!m_profile.empty()) {
+                const ModelObjectPtrs& objects = plater().model.objects;
+                for (auto object : objects)
+                    if (object->volumes.size() > 1)
+                    {
+                        Slic3r::GUI::show_info(nullptr,
+                                               _L("You cannot load SLA project with a multi-part object on the bed") + "\n\n" +
+                                                   _L("Please check your object list before preset changing."),
+                                               _L("Attention!"));
+                        return;
+                    }
+                
+                DynamicPrintConfig config = {};
+                config.apply(SLAFullPrintConfig::defaults());
+                config += std::move(m_profile);
+                
+                wxGetApp().preset_bundle->load_config_model(name, std::move(config));
+                wxGetApp().load_current_presets();
+            }
+            
+            if (!m_mesh.empty())
+                plater().sidebar->obj_list()->load_mesh_object(m_mesh, name);
+            
+            plater().update();
+        }
+    };
 
     // Jobs defined inside the group class will be managed so that only one can
     // run at a time. Also, the background process will be stopped if a job is
@@ -1749,6 +1866,7 @@ struct Plater::priv
 
         ArrangeJob arrange_job{m_plater};
         RotoptimizeJob rotoptimize_job{m_plater};
+        SLAImportJob import_sla_arch_job{m_plater};
 
         // To create a new job, just define a new subclass of Job, implement
         // the process and the optional prepare() and finalize() methods
@@ -1756,7 +1874,8 @@ struct Plater::priv
         // if it cannot run concurrently with other jobs in this group
 
         std::vector<std::reference_wrapper<Job>> m_jobs{arrange_job,
-                                                        rotoptimize_job};
+                                                        rotoptimize_job,
+                                                        import_sla_arch_job};
 
     public:
         ExclusiveJobGroup(priv *_plater) : m_plater(_plater) {}
@@ -2021,6 +2140,8 @@ const std::regex Plater::priv::pattern_3mf(".*3mf", std::regex::icase);
 const std::regex Plater::priv::pattern_zip_amf(".*[.]zip[.]amf", std::regex::icase);
 const std::regex Plater::priv::pattern_any_amf(".*[.](amf|amf[.]xml|zip[.]amf)", std::regex::icase);
 const std::regex Plater::priv::pattern_prusa(".*prusa", std::regex::icase);
+
+wxComboBox *Plater::priv::SLAImportJob::import_profile_cbx = nullptr;
 
 Plater::priv::priv(Plater *q, MainFrame *main_frame)
     : q(q)
@@ -4650,29 +4771,7 @@ void Plater::add_model()
 
 void Plater::import_sl1_archive()
 {
-    static wxCheckBox * import_profile_chbx = nullptr;
-    
-    wxFileDialog dlg(this, _(L("Choose SL1 archive:")),
-                     from_u8(wxGetApp().app_config->get_last_dir()), "",
-                     "SL1 archive files (*.sl1, *.zip)|*.sl1;*.SL1;*.zip;*.ZIP",
-                     wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-    
-    dlg.SetExtraControlCreator([](wxWindow *parent) -> wxWindow* {
-        return import_profile_chbx =
-                   new wxCheckBox(parent, wxID_ANY, "Import profile settings");
-    });
-
-    if (dlg.ShowModal() == wxID_OK) {
-        try {
-            if (import_profile_chbx && import_profile_chbx->GetValue())
-                ;  // TODO: import the profile as well
-                
-            TriangleMesh mesh = import_model_from_sla_zip(dlg.GetPath());
-            p->sidebar->obj_list()->load_mesh_object(mesh, wxFileName(dlg.GetPath()).GetName());
-        } catch (std::exception &ex) {
-            show_error(this, ex.what());
-        }
-    }
+    p->m_ui_jobs.start(priv::Jobs::ImportSLA);
 }
 
 void Plater::extract_config_from_project()
