@@ -49,6 +49,7 @@
 #include "UpdateDialogs.hpp"
 #include "Mouse3DController.hpp"
 #include "RemovableDriveManager.hpp"
+#include "InstanceCheck.hpp"
 
 #ifdef __WXMSW__
 #include <dbt.h>
@@ -208,6 +209,17 @@ static void register_win32_device_notification_event()
 		}
         return false;
     });
+
+	wxWindow::MSWRegisterMessageHandler(WM_COPYDATA, [](wxWindow* win, WXUINT /* nMsg */, WXWPARAM wParam, WXLPARAM lParam) {
+
+		COPYDATASTRUCT* copy_data_structure = { 0 };
+		copy_data_structure = (COPYDATASTRUCT*)lParam;
+		if (copy_data_structure->dwData == 1) {
+			LPCWSTR arguments = (LPCWSTR)copy_data_structure->lpData;
+			Slic3r::GUI::wxGetApp().other_instance_message_handler()->handle_message(boost::nowide::narrow(arguments));
+		}
+		return true;
+		});
 }
 #endif // WIN32
 
@@ -252,6 +264,7 @@ GUI_App::GUI_App()
     , m_imgui(new ImGuiWrapper())
     , m_wizard(nullptr)
 	, m_removable_drive_manager(std::make_unique<RemovableDriveManager>())
+	, m_other_instance_message_handler(std::make_unique<OtherInstanceMessageHandler>())
 {}
 
 GUI_App::~GUI_App()
@@ -320,7 +333,8 @@ bool GUI_App::on_init_inner()
     if (data_dir().empty())
         set_data_dir(wxStandardPaths::Get().GetUserDataDir().ToUTF8().data());
 
-    app_config = new AppConfig();
+	if (!app_config)
+		app_config = new AppConfig();
     preset_bundle = new PresetBundle();
 
     // just checking for existence of Slic3r::data_dir is not enough : it may be an empty directory
