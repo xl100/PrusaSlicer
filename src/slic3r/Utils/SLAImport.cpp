@@ -271,6 +271,8 @@ std::vector<ExPolygons> extract_slices_from_sla_archive(
     
         slices[i] = std::move(expolys);
     });
+    
+    if (st.stop) slices = {};
 
     return slices;
 }

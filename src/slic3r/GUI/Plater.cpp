@@ -1806,11 +1806,12 @@ struct Plater::priv
                                                 _L("Importing done."));
         }
         
+        void reset() { m_mesh = {}; m_profile = {}; }
+        
     protected:
         void prepare() override
         {
-            m_mesh = {};
-            m_profile = {};
+            reset();
             m_dlg_ret = m_dlg.ShowModal();
         }
 
@@ -1851,7 +1852,7 @@ struct Plater::priv
             if (!m_mesh.empty())
                 plater().sidebar->obj_list()->load_mesh_object(m_mesh, name);
             
-            plater().update();
+            reset();
         }
     };
 
