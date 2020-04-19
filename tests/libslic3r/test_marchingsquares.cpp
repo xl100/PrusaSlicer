@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include <catch2/catch.hpp>
 #include <test_utils.hpp>
 
@@ -5,6 +7,7 @@
 
 #include <libslic3r/MarchingSquares.hpp>
 #include <libslic3r/SLA/RasterToPolygons.hpp>
+
 #include <libslic3r/SLA/AGGRaster.hpp>
 #include <libslic3r/MTUtils.hpp>
 #include <libslic3r/SVG.hpp>
