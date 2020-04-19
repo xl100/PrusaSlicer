@@ -208,7 +208,7 @@ template<class Rst> class Grid {
     {
         // Skip ambiguous tags as starting tags due to unknown previous
         // direction.
-        while ((i < m_tags.size() && is_visited(i)) || is_ambiguous(i)) ++i;
+        while ((i < m_tags.size()) && (is_visited(i) || is_ambiguous(i))) ++i;
         
         return i;
     }
