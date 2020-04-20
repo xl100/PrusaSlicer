@@ -242,9 +242,11 @@ std::vector<ExPolygons> extract_slices_from_sla_archive(
         bool            stop = false;
         tbb::spin_mutex mutex;
     } st {100. / slices.size(), 0., 0.};
+
+//    auto tol = double(10 * std::max(rstp.px_h, rstp.px_w));
     
     tbb::parallel_for(size_t(0), arch.images.size(),
-                     [&arch, &slices, &st, &rstp, progr](size_t i) {
+                     [&arch, &slices, &st, &rstp, progr/*, tol*/](size_t i) {
         // Status indication guarded with the spinlock
         {
             std::lock_guard<tbb::spin_mutex> lck(st.mutex);
@@ -264,7 +266,9 @@ std::vector<ExPolygons> extract_slices_from_sla_archive(
     
         auto rings = marchsq::execute(img, 128, rstp.win);
         ExPolygons expolys = rings_to_expolygons(rings, rstp.px_w, rstp.px_h);
-    
+
+//        for (auto &poly : expolys) poly.simplify(tol);
+
         // Invert the raster transformations indicated in
         // the profile metadata
         invert_raster_trafo(expolys, rstp.trafo, rstp.width, rstp.height);

@@ -1739,65 +1739,69 @@ struct Plater::priv
     };
     
     class SLAImportJob : public PlaterJob {
-        wxFileDialog m_dlg;
-        int m_dlg_ret = wxID_CANCEL;
-        
-        TriangleMesh m_mesh;
-        DynamicPrintConfig m_profile;
-        std::string m_err;
-        
-        // TODO: make this a member var
-        static wxComboBox *import_profile_cbx;
-    public:
-        SLAImportJob(priv *prv)
-            : PlaterJob(prv)
-            , m_dlg{prv->q, _(L("Choose SL1 archive:")),
-                  from_u8(wxGetApp().app_config->get_last_dir()), "",
-                  "SL1 archive files (*.sl1, *.zip)|*.sl1;*.SL1;*.zip;*.ZIP",
-                  wxFD_OPEN | wxFD_FILE_MUST_EXIST}
-        { 
-            m_dlg.SetExtraControlCreator([](wxWindow *parent) -> wxWindow * {
-                std::vector<wxString> choices = {
-                    _(L("Import model and profile")),
-                    _(L("Import profile only")),
-                    _(L("Import model only"))
-                };
-                
-                return import_profile_cbx =
-                           new wxComboBox(parent, wxID_ANY, choices[0],
+        enum class Sel { modelAndProfile, profileOnly, modelOnly};
+
+        class FileDlg: public wxFileDialog {
+        public:
+            template<class... Args> FileDlg(Args &&... args)
+                : wxFileDialog(std::forward<Args>(args)...)
+            {
+                SetExtraControlCreator([](wxWindow *parent) -> wxWindow * {
+                    std::vector<wxString> choices = {
+                        _(L("Import model and profile")),
+                        _(L("Import profile only")),
+                        _(L("Import model only"))
+                    };
+
+                    return new wxComboBox(parent, wxID_ANY, choices[0],
                                           wxDefaultPosition, wxDefaultSize,
                                           choices.size(), choices.data(),
                                           wxCB_READONLY | wxCB_DROPDOWN);
-            });
-        }
+                });
+            }
+
+            Sel get_selection() const
+            {
+                auto cbx = dynamic_cast<wxComboBox*>(GetExtraControl());
+                if (!cbx) return Sel::modelAndProfile;
+
+                int sel = cbx->GetSelection();
+                return Sel(std::min(int(Sel::modelOnly), std::max(0, sel)));
+            }
+        };
+
+        Sel m_sel = Sel::modelAndProfile;
         
+        TriangleMesh m_mesh;
+        DynamicPrintConfig m_profile;
+        wxString    m_path;
+        std::string m_err;
+    public:
+        SLAImportJob(priv *prv) : PlaterJob(prv) {}
+
         void process() override
         {
-            enum Sel { modelAndProfile, profileOnly, modelOnly};
-            
             auto progr = [this](int s) {
                 if (s < 100) update_status(int(s), _L("Importing SLA archive"));
                 return !was_canceled();
             };
             
-            if (m_dlg_ret != wxID_OK) return;
-            
+            if (m_path.empty()) return;
+
+            std::string path = m_path.ToUTF8().data();
             try {
-                if (import_profile_cbx) {
-                    auto name = m_dlg.GetPath().ToStdString();
-                    int sel = import_profile_cbx->GetSelection();
-                    switch (Sel(sel)) {
-                    case modelAndProfile:
-                        import_sla_archive(name, {2, 2}, m_mesh, m_profile, progr);
-                        break;
-                    case modelOnly:
-                        import_sla_archive(name, {2, 2}, m_mesh, progr);
-                        break;
-                    case profileOnly:
-                        import_sla_archive(name, m_profile);
-                        break;
-                    }
+                switch (m_sel) {
+                case Sel::modelAndProfile:
+                    import_sla_archive(path, {2, 2}, m_mesh, m_profile, progr);
+                    break;
+                case Sel::modelOnly:
+                    import_sla_archive(path, {2, 2}, m_mesh, progr);
+                    break;
+                case Sel::profileOnly:
+                    import_sla_archive(path, m_profile);
+                    break;
                 }
+
             } catch (std::exception &ex) {
                 m_err = ex.what();
             }
@@ -1805,14 +1809,29 @@ struct Plater::priv
             update_status(100, was_canceled() ? _L("Importing canceled.") :
                                                 _L("Importing done."));
         }
-        
-        void reset() { m_mesh = {}; m_profile = {}; }
-        
+
+        void reset()
+        {
+            m_sel     = Sel::modelAndProfile;
+            m_mesh    = {};
+            m_profile = {};
+            m_path.Clear();
+        }
+
     protected:
         void prepare() override
         {
             reset();
-            m_dlg_ret = m_dlg.ShowModal();
+
+            FileDlg dlg{plater().q, _(L("Choose SL1 archive:")),
+                        from_u8(wxGetApp().app_config->get_last_dir()), "",
+                        "SL1 archive files (*.sl1, *.zip)|*.sl1;*.SL1;*.zip;*.ZIP",
+                        wxFD_OPEN | wxFD_FILE_MUST_EXIST};
+
+            if (dlg.ShowModal() == wxID_OK) {
+                m_path = dlg.GetPath().ToUTF8();
+                m_sel  = dlg.get_selection();
+            }
         }
 
         void finalize() override
@@ -1826,7 +1845,7 @@ struct Plater::priv
                 return;
             }
             
-            auto name = wxFileName(m_dlg.GetPath()).GetName().ToStdString();
+            std::string name = wxFileName(m_path).GetName().ToUTF8().data();
             
             // TODO load profile
             if (!m_profile.empty()) {
@@ -2141,8 +2160,6 @@ const std::regex Plater::priv::pattern_3mf(".*3mf", std::regex::icase);
 const std::regex Plater::priv::pattern_zip_amf(".*[.]zip[.]amf", std::regex::icase);
 const std::regex Plater::priv::pattern_any_amf(".*[.](amf|amf[.]xml|zip[.]amf)", std::regex::icase);
 const std::regex Plater::priv::pattern_prusa(".*prusa", std::regex::icase);
-
-wxComboBox *Plater::priv::SLAImportJob::import_profile_cbx = nullptr;
 
 Plater::priv::priv(Plater *q, MainFrame *main_frame)
     : q(q)
