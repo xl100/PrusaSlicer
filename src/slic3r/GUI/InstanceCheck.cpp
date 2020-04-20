@@ -164,7 +164,7 @@ namespace instance_check_internal
 		char*    		method_name 	= "AnotherInstace";
     	char*			object_name 	= "/com/prusa3d/prusaslicer/InstanceCheck";				
 
-	    printf("Sending method call with value %s\n", sigvalue);
+	    //printf("Sending method call with value %s\n", sigvalue);
 
 	    // initialise the error value
 	    dbus_error_init(&err);
@@ -237,6 +237,7 @@ bool instance_check(int argc, char** argv, bool app_config_single_instance)
 namespace GUI {
 
 wxDEFINE_EVENT(EVT_LOAD_MODEL_OTHER_INSTANCE, LoadFromOtherInstanceEvent);
+wxDEFINE_EVENT(EVT_INSTANCE_GO_TO_FRONT, InstanceGoToFrontEvent);
 
 void OtherInstanceMessageHandler::init(wxEvtHandler* callback_evt_handler)
 {
@@ -262,6 +263,7 @@ void OtherInstanceMessageHandler::init(wxEvtHandler* callback_evt_handler)
 }
 void OtherInstanceMessageHandler::shutdown()
 {
+	BOOST_LOG_TRIVIAL(debug) << "message handler shutdown().";
 	assert(m_initialized);
 	if (m_initialized) {
 #if __APPLE__
@@ -292,7 +294,13 @@ void OtherInstanceMessageHandler::handle_message(const std::string message) {
 	int                                  counter = 0;
 
 	BOOST_LOG_TRIVIAL(trace) << "message from other instance: " << message;
-	bring_this_instance_forward();
+
+	//bring_this_instance_forward();
+	wxEvtHandler* evt_handler = wxGetApp().plater(); //assert here?
+	if (evt_handler) {
+		wxPostEvent(evt_handler, InstanceGoToFrontEvent(EVT_INSTANCE_GO_TO_FRONT));
+	}
+
 	while (next_space != std::string::npos)
 	{
 		const std::string possible_path = message.substr(last_space, next_space - last_space);
@@ -307,20 +315,20 @@ void OtherInstanceMessageHandler::handle_message(const std::string message) {
 		paths.emplace_back(boost::filesystem::path(message.substr(last_space + 1)));
 	}
 	if (!paths.empty()) {
-		wxEvtHandler* evt_handler = GUI::wxGetApp().plater(); //assert here?
+		wxEvtHandler* evt_handler = wxGetApp().plater(); //assert here?
 		if (evt_handler) {
-			wxPostEvent(evt_handler, GUI::LoadFromOtherInstanceEvent(GUI::EVT_LOAD_MODEL_OTHER_INSTANCE, std::vector<boost::filesystem::path>(std::move(paths))));
+			wxPostEvent(evt_handler, LoadFromOtherInstanceEvent(GUI::EVT_LOAD_MODEL_OTHER_INSTANCE, std::vector<boost::filesystem::path>(std::move(paths))));
 		}
 	}
 }
 
 void OtherInstanceMessageHandler::bring_this_instance_forward() const
 {
-	printf("going forward\n");
+	//printf("going forward\n");
 	//GUI::wxGetApp().GetTopWindow()->Iconize(false); // restore the window if minimized
-	GUI::wxGetApp().GetTopWindow()->SetFocus();  // focus on my window
-	GUI::wxGetApp().GetTopWindow()->Raise();  // bring window to front
-	GUI::wxGetApp().GetTopWindow()->Show(true); // show the window
+	wxGetApp().GetTopWindow()->SetFocus();  // focus on my window
+	wxGetApp().GetTopWindow()->Raise();  // bring window to front
+	wxGetApp().GetTopWindow()->Show(true); // show the window
 }
 
 #ifdef BACKGROUND_MESSAGE_LISTENER

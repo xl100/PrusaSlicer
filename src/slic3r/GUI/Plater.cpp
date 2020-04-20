@@ -2224,6 +2224,13 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
     this->q->Bind(EVT_LOAD_MODEL_OTHER_INSTANCE, [this](LoadFromOtherInstanceEvent &evt) { 
         this->load_files(evt.data, true, true);
     });
+    this->q->Bind(EVT_INSTANCE_GO_TO_FRONT, [this](InstanceGoToFrontEvent &) { 
+        BOOST_LOG_TRIVIAL(debug) << "going forward";
+        wxGetApp().GetTopWindow()->SetFocus();  // focus on my window
+        wxGetApp().GetTopWindow()->Raise();  // bring window to front
+        wxGetApp().GetTopWindow()->Show(true); // show the window
+        BOOST_LOG_TRIVIAL(debug) << "went forward";
+    });
 	wxGetApp().other_instance_message_handler()->init(this->q);
 
 }
