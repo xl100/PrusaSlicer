@@ -35,7 +35,7 @@ namespace instance_check_internal
 				ret.cl_string += token;
 			}
 		}
-		BOOST_LOG_TRIVIAL(error) << "single instance: "<< ret.should_send << ". other params: " << ret.cl_string;
+		BOOST_LOG_TRIVIAL(debug) << "single instance: "<< ret.should_send << ". other params: " << ret.cl_string;
 		return ret;
 	}
 } //namespace instance_check_internal
@@ -86,12 +86,12 @@ bool instance_check(int argc, char** argv, bool app_config_single_instance)
 	if (cla.should_send || app_config_single_instance) {
 		// Call EnumWidnows with own callback. cons: Based on text in the name of the window and class name which is generic.
 		if (!EnumWindows(instance_check_internal::EnumWindowsProc, 0)) {
-			BOOST_LOG_TRIVIAL(trace) << "instance check: Another instance found.";
+		BOOST_LOG_TRIVIAL(info) << "instance check: Another instance found. This instance will terminate.";
 			instance_check_internal::send_message(instance_check_internal::l_prusa_slicer_hwnd);
 			return true;
 		}
 	}
-	BOOST_LOG_TRIVIAL(trace) << "instance check: Another instance not found or single-instance not set.";
+	BOOST_LOG_TRIVIAL(info) << "instance check: Another instance not found or single-instance not set.";
 	return false;
 }
 
@@ -122,11 +122,11 @@ bool instance_check(int argc, char** argv, bool app_config_single_instance)
 {
 	instance_check_internal::CommandLineAnalysis cla = instance_check_internal::process_command_line(argc, argv);
 	if (!instance_check_internal::get_lock() && (cla.should_send || app_config_single_instance)) {
-		BOOST_LOG_TRIVIAL(trace) << "instance check: Another instance found.";
+		BOOST_LOG_TRIVIAL(info) << "instance check: Another instance found. This instance will terminate.";
 		send_message_mac(cla.cl_string);
 		return true;
 	}
-	BOOST_LOG_TRIVIAL(trace) << "instance check: Another instance not found or single-instance not set.";
+	BOOST_LOG_TRIVIAL(info) << "instance check: Another instance not found or single-instance not set.";
 	return false;
 }
 
@@ -152,19 +152,18 @@ namespace instance_check_internal
 		return 1;
 	}
 
-	static void send_message(const std::string message)
+	static void send_message(std::string message_text)
 	{
 		DBusMessage* 	msg;
 	    DBusMessageIter args;
 	    DBusConnection* conn;
 	    DBusError 		err;
 	    dbus_uint32_t 	serial 			= 0;
-	    const char* 	sigvalue 		= message.c_str();
-		char*			interface_name  = "com.prusa3d.prusaslicer.InstanceCheck";
-		char*    		method_name 	= "AnotherInstace";
-    	char*			object_name 	= "/com/prusa3d/prusaslicer/InstanceCheck";				
+	    const char*		sigval 			= message_text.c_str();
+		std::string		interface_name  = "com.prusa3d.prusaslicer.InstanceCheck";
+		std::string   	method_name 	= "AnotherInstace";
+    	std::string		object_name 	= "/com/prusa3d/prusaslicer/InstanceCheck";				
 
-	    //printf("Sending method call with value %s\n", sigvalue);
 
 	    // initialise the error value
 	    dbus_error_init(&err);
@@ -185,7 +184,7 @@ namespace instance_check_internal
 		//some sources do request interface ownership before constructing msg but i think its wrong.
 
 	    //create new method call message
-		msg = dbus_message_new_method_call(interface_name, object_name, interface_name, method_name);
+		msg = dbus_message_new_method_call(interface_name.c_str(), object_name.c_str(), interface_name.c_str(), method_name.c_str());
 	    if (NULL == msg) { 
 	    	BOOST_LOG_TRIVIAL(error) << "DBus Message is NULL. Message to another instance wont be send.";
 	    	dbus_connection_unref(conn);
@@ -195,7 +194,7 @@ namespace instance_check_internal
 	    dbus_message_set_no_reply(msg, TRUE);
 
 	    //append arguments to message
-		if (!dbus_message_append_args(msg, DBUS_TYPE_STRING, &sigvalue, DBUS_TYPE_INVALID)) {
+		if (!dbus_message_append_args(msg, DBUS_TYPE_STRING, &sigval, DBUS_TYPE_INVALID)) {
 			BOOST_LOG_TRIVIAL(error) << "Ran out of memory while constructing args for DBus message. Message to another instance wont be send.";
 		    dbus_message_unref(msg);
 		    dbus_connection_unref(conn);
@@ -223,11 +222,11 @@ bool instance_check(int argc, char** argv, bool app_config_single_instance)
 {
 	instance_check_internal::CommandLineAnalysis cla = instance_check_internal::process_command_line(argc, argv);
 	if (!instance_check_internal::get_lock() && (cla.should_send || app_config_single_instance)) {
-		BOOST_LOG_TRIVIAL(trace) << "instance check: Another instance found.";
+		BOOST_LOG_TRIVIAL(info) << "instance check: Another instance found. This instance will terminate.";
 		instance_check_internal::send_message(cla.cl_string);
 		return true;
 	}
-	BOOST_LOG_TRIVIAL(trace) << "instance check: Another instance not found or single-instance not set.";
+	BOOST_LOG_TRIVIAL(info) << "instance check: Another instance not found or single-instance not set.";
 	return false;
 }
 #endif //_WIN32/__APPLE__/__linux__
@@ -322,15 +321,6 @@ void OtherInstanceMessageHandler::handle_message(const std::string message) {
 	}
 }
 
-void OtherInstanceMessageHandler::bring_this_instance_forward() const
-{
-	//printf("going forward\n");
-	//GUI::wxGetApp().GetTopWindow()->Iconize(false); // restore the window if minimized
-	wxGetApp().GetTopWindow()->SetFocus();  // focus on my window
-	wxGetApp().GetTopWindow()->Raise();  // bring window to front
-	wxGetApp().GetTopWindow()->Show(true); // show the window
-}
-
 #ifdef BACKGROUND_MESSAGE_LISTENER
 
 namespace MessageHandlerDBusInternal
@@ -401,9 +391,8 @@ void OtherInstanceMessageHandler::listen()
     DBusError 			 err;
     int 				 name_req_val;
     DBusObjectPathVTable vtable;
-	char*				 interface_name = "com.prusa3d.prusaslicer.InstanceCheck";
-	char*    			 signal_name 	= "AnotherInstace";
-    char*				 object_name 	= "/com/prusa3d/prusaslicer/InstanceCheck";
+	std::string			 interface_name = "com.prusa3d.prusaslicer.InstanceCheck";
+    std::string			 object_name 	= "/com/prusa3d/prusaslicer/InstanceCheck";
 
     dbus_error_init(&err);
 
@@ -421,7 +410,7 @@ void OtherInstanceMessageHandler::listen()
     }
 
 	// request our name on the bus and check for errors
-	name_req_val = dbus_bus_request_name(conn, interface_name, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
+	name_req_val = dbus_bus_request_name(conn, interface_name.c_str(), DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
 	if (dbus_error_is_set(&err)) {
 	    BOOST_LOG_TRIVIAL(error) << "DBus Request name Error: "<< err.message; 
 	    BOOST_LOG_TRIVIAL(error) << "Dbus Messages listening terminating.";
@@ -441,7 +430,7 @@ void OtherInstanceMessageHandler::listen()
     vtable.unregister_function = NULL;
 
     // register new object - this is our access to DBus
-    dbus_connection_try_register_object_path(conn, object_name, &vtable, NULL, &err);
+    dbus_connection_try_register_object_path(conn, object_name.c_str(), &vtable, NULL, &err);
    	if ( dbus_error_is_set(&err) ) {
    		BOOST_LOG_TRIVIAL(error) << "DBus Register object Error: "<< err.message; 
 	    BOOST_LOG_TRIVIAL(error) << "Dbus Messages listening terminating.";

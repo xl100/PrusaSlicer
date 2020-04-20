@@ -59,9 +59,8 @@ public:
 	//security of messages: from message all existing paths are proccesed to load model 
 	//						win32 - anybody who has hwnd can send message.
 	//						mac - anybody who posts notification with name:@"OtherPrusaSlicerTerminating"
-	//						linux - dbus
+	//						linux - instrospectable on dbus
 	void    handle_message(const std::string message);
-	void	bring_this_instance_forward() const;
 private:
 	bool                    m_initialized { false };
 	wxEvtHandler*           m_callback_evt_handler { nullptr };
