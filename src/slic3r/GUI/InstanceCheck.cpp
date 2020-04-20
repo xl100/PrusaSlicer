@@ -294,12 +294,6 @@ void OtherInstanceMessageHandler::handle_message(const std::string message) {
 
 	BOOST_LOG_TRIVIAL(trace) << "message from other instance: " << message;
 
-	//bring_this_instance_forward();
-	wxEvtHandler* evt_handler = wxGetApp().plater(); //assert here?
-	if (evt_handler) {
-		wxPostEvent(evt_handler, InstanceGoToFrontEvent(EVT_INSTANCE_GO_TO_FRONT));
-	}
-
 	while (next_space != std::string::npos)
 	{
 		const std::string possible_path = message.substr(last_space, next_space - last_space);
@@ -354,9 +348,10 @@ namespace MessageHandlerDBusInternal
 	//method AnotherInstance receives message from another PrusaSlicer instance 
 	static void handle_method_another_instance(DBusConnection *connection, DBusMessage *request)
 	{
-	    DBusError err;
-	    char*     text= "";
-	 
+	    DBusError     err;
+	    char*         text= "";
+		wxEvtHandler* evt_handler;
+
 	    dbus_error_init(&err);
 	    dbus_message_get_args(request, &err, DBUS_TYPE_STRING, &text, DBUS_TYPE_INVALID);
 	    if (dbus_error_is_set(&err)) {
@@ -365,6 +360,11 @@ namespace MessageHandlerDBusInternal
 	        return;
 	    }
 	    wxGetApp().other_instance_message_handler()->handle_message(text);
+
+		evt_handler = wxGetApp().plater();
+		if (evt_handler) {
+			wxPostEvent(evt_handler, InstanceGoToFrontEvent(EVT_INSTANCE_GO_TO_FRONT));
+		}
 	}
 	//every dbus message received comes here
 	static DBusHandlerResult handle_dbus_object_message(DBusConnection *connection, DBusMessage *message, void *user_data)
