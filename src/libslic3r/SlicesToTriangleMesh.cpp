@@ -68,7 +68,7 @@ void slices_to_triangle_mesh(TriangleMesh &                 mesh,
         ExPolygons dff1 = diff_ex(*it, *xt);
         ExPolygons dff2 = diff_ex(*xt, *it);
         cntr3d.merge(triangulate_expolygons_3d(dff1, h, NORMALS_UP));
-        cntr3d.merge(triangulate_expolygons_3d(dff2, h, NORMALS_UP));
+        cntr3d.merge(triangulate_expolygons_3d(dff2, h, NORMALS_DOWN));
         cntr3d.merge(straight_walls(*xt, h, h + lh));
         h += lh;
         ++it; ++xt;
@@ -77,7 +77,8 @@ void slices_to_triangle_mesh(TriangleMesh &                 mesh,
     cntr3d.merge(triangulate_expolygons_3d(*it, h, NORMALS_UP));
     
     mesh.merge(sla::to_triangle_mesh(cntr3d));
-    mesh.require_shared_vertices();
+    mesh.repair(true);
+    mesh.reset_repair_stats();
 }
 
 } // namespace Slic3r

@@ -367,5 +367,5 @@ static void recreate_object_from_rasters(const std::string &objname, float lh) {
 }
 
 TEST_CASE("Recreate object from rasters", "[SL1Import]") {
-    recreate_object_from_rasters("extruder_idler.obj", 0.05f);
+    recreate_object_from_rasters("frog_legs.obj", 0.05f);
 }
